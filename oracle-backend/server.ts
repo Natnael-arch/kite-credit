@@ -48,7 +48,7 @@ async function verifyPaymentOnChain(header: string) {
     }
 
     // Decode logs to cryptographically verify payment
-    const expectedPayee = (process.env.ORACLE_WALLET_ADDRESS || "0x55d829A66BB1D9f82923cBDEe355249EE5940365").toLowerCase();
+    const expectedPayee = (process.env.ORACLE_WALLET_ADDRESS || "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c").toLowerCase();
     const minAmount = BigInt(MIN_AMOUNT);
     const targetAsset = PYUSD_ADDRESS.toLowerCase();
 
@@ -101,7 +101,7 @@ app.get("/score/:addr", async (req, res) => {
         resource:         `https://agentscore.onrender.com/score/${addr}`,
         description:      "AgentScore Oracle — verifiable on-chain credit score",
         mimeType:         "application/json",
-        payTo:            "0x55d829A66BB1D9f82923cBDEe355249EE5940365",
+        payTo:            process.env.ORACLE_WALLET_ADDRESS || "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
         maxTimeoutSeconds: 300,
         asset:            "0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9",
         extra:            null,

@@ -37,9 +37,13 @@ async function getPassportHistory(
       }
     );
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`[SCORER] Passport API failed for ${agentAddress}. Status: ${response.status} ${response.statusText}`);
+      return null;
+    }
     return await response.json();
-  } catch {
+  } catch (error: any) {
+    console.error(`[SCORER] Passport API request error for ${agentAddress}:`, error.message);
     return null;
   }
 }
@@ -115,23 +119,47 @@ async function scoreRepaymentHistory(
   provider: ethers.JsonRpcProvider
 ): Promise<number> {
   const LENDING_POOL_ADDRESS = process.env.LENDING_POOL_ADDRESS;
-  if (!LENDING_POOL_ADDRESS) return 0;
+  if (!LENDING_POOL_ADDRESS) {
+    console.error("[SCORER] ⚠️ LENDING_POOL_ADDRESS env var is not set — repayment factor (35% weight) will be 0!");
+    return 0;
+  }
   
   try {
+    // The contract exposes: mapping(address => RepaymentRecord[]) public repaymentHistory
+    // The auto-generated accessor is: repaymentHistory(address, uint256 index)
+    // It reverts on out-of-bounds, so we iterate until that happens.
     const abi = [
-      "function getRepaymentHistory(address agent) view returns (tuple(uint256 loanId, uint256 amount, bool fullyRepaid, uint256 timestamp)[])"
+      "function repaymentHistory(address, uint256) view returns (uint256 loanId, uint256 amount, bool fullyRepaid, uint256 timestamp)"
     ];
 
     const contract = new ethers.Contract(
       LENDING_POOL_ADDRESS, abi, provider
     );
 
-    const history = await contract.getRepaymentHistory(agentAddress);
+    const records: { loanId: bigint; amount: bigint; fullyRepaid: boolean; timestamp: bigint }[] = [];
+    const MAX_RECORDS = 50; // safety cap to avoid infinite loop
+
+    for (let i = 0; i < MAX_RECORDS; i++) {
+      try {
+        const record = await contract.repaymentHistory(agentAddress, i);
+        records.push({
+          loanId:     record.loanId,
+          amount:     record.amount,
+          fullyRepaid: record.fullyRepaid,
+          timestamp:  record.timestamp
+        });
+      } catch {
+        // Out-of-bounds revert = end of array, stop iterating
+        break;
+      }
+    }
+
+    console.log(`[SCORER] Repayment history for ${agentAddress}: ${records.length} record(s) found`);
 
     let points = 0;
     let fullRepayments = 0;
 
-    for (const record of history) {
+    for (const record of records) {
       if (record.fullyRepaid) {
         fullRepayments++;
         points += 40; // fully repaid loan
@@ -145,9 +173,12 @@ async function scoreRepaymentHistory(
     if (fullRepayments >= 2) points += 30;
     if (fullRepayments >= 3) points += 42;
 
-    return Math.min(192, points);
+    const finalPoints = Math.min(192, points);
+    console.log(`[SCORER] Repayment score for ${agentAddress}: ${finalPoints} pts (${fullRepayments} full repayments, ${records.length} total records)`);
+    return finalPoints;
   } catch (error) {
-    console.warn("[SCORER] Repayment history check failed:", error);
+    // Loud failure — this is 35% of the score, never let it fail silently
+    console.error("[SCORER] ❌ REPAYMENT HISTORY READ FAILED — 35% weight factor returning 0. This needs investigation!", error);
     return 0;
   }
 }

@@ -6,10 +6,10 @@ const contract = new ethers.Contract(pyusdAddress, abi, provider);
 
 const addresses = {
   Agent: "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
-  Oracle: "0x55d829A66BB1D9f82923cBDEe355249EE5940365",
+  Oracle: "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
   Passport: "0x162b595597E9106FD04509AE9487b3ba02454B6a",
-  LendingPool: "0x16c110a07640831b98EF82dFFa3D2eBF8c8067dE",
-  X402Processor: "0x18BE09e6986B61eAa7Cbe4fA21Df1b512DDFc252"
+  LendingPool: "0xC84c34835BEB8A4fb180979E1A4b567A6fC9F9dE",
+  X402Processor: "0xd414b8c0c4FF3F3a1befc2a13293EE4BCF39F337"
 };
 
 async function main() {

@@ -3,22 +3,54 @@ import { supabase } from "../config.js";
 
 export const agentsRouter = Router();
 
-async function verifyPassport(agentAddress: string): Promise<boolean> {
+// ── REQUIRE_PASSPORT gate ──────────────────────────────────────────
+// Default: true (fail-closed). Set to "false" in .env to allow
+// unverified agents for testing. This is intentionally verbose so
+// the flag is impossible to miss during code review.
+const REQUIRE_PASSPORT: boolean = process.env.REQUIRE_PASSPORT !== "false";
+if (!REQUIRE_PASSPORT) {
+  console.warn("⚠️  REQUIRE_PASSPORT=false — unverified agents will be allowed to register. DO NOT ship this to production.");
+}
+
+type VerificationStatus = "verified" | "unverified" | "unknown";
+
+type PassportResult =
+  | { status: "verified"; passportId: string | null }
+  | { status: "not_verified" }
+  | { status: "unknown"; error: string };
+
+function passportResultToVerificationStatus(r: PassportResult): VerificationStatus {
+  if (r.status === "verified") return "verified";
+  if (r.status === "not_verified") return "unverified";
+  return "unknown"; // API unreachable
+}
+
+async function verifyPassport(agentAddress: string): Promise<PassportResult> {
   try {
     const response = await fetch(
       "https://passport.prod.gokite.ai/v1/agents/verify",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent_address: agentAddress })
+        body: JSON.stringify({ agent_address: agentAddress }),
+        signal: AbortSignal.timeout(10_000),
       }
     );
+
+    if (!response.ok) {
+      return { status: "unknown", error: `Passport API returned HTTP ${response.status}` };
+    }
+
     const data = await response.json();
-    return data.verified === true;
-  } catch {
-    // If Passport API is down/unreachable, allow registration but flag as unverified on the UI
-    console.warn(`⚠️ Passport API unreachable for ${agentAddress}. Allowing registration with unverified status.`);
-    return true;
+
+    if (data.verified === true) {
+      return { status: "verified", passportId: data.passport_id ?? data.id ?? null };
+    }
+
+    return { status: "not_verified" };
+  } catch (err: any) {
+    console.error(`Passport API error for ${agentAddress}:`, err?.message ?? err);
+    return { status: "unknown", error: err?.message ?? "Network error" };
   }
 }
 
@@ -26,7 +58,7 @@ agentsRouter.get("/", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("agents")
-      .select("address, name, score, agent_type")
+      .select("address, name, score, agent_type, verification_status")
       .order("registered_at", { ascending: false });
 
     if (error) {
@@ -72,6 +104,8 @@ agentsRouter.get("/:address", async (req, res) => {
       failedPayments: data.failed_payments,
       totalPayments: data.total_payments,
       passportVerified: data.passport_verified || false,
+      passportId: data.passport_id || null,
+      verificationStatus: data.verification_status || "unverified",
       passport: {
         agentType: data.agent_type,
         modelHash: data.model_hash || "0x0000...0000",
@@ -93,15 +127,34 @@ agentsRouter.post("/", async (req, res) => {
       return res.status(400).json({ error: "address is required" });
     }
 
-    const passportVerified = await verifyPassport(address);
+    const passportResult = await verifyPassport(address);
+    const verificationStatus = passportResultToVerificationStatus(passportResult);
 
-    if (!passportVerified) {
-      return res.status(403).json({
-        error: "Kite Passport required",
-        message: "Agent must have a registered Kite Passport to use KiteCredit",
-        registerAt: "https://agentpassport.ai"
-      });
+    // ── REQUIRE_PASSPORT gate ──
+    if (REQUIRE_PASSPORT) {
+      // Original fail-closed behaviour — unchanged
+      if (passportResult.status === "unknown") {
+        return res.status(503).json({
+          error: "Passport verification unavailable",
+          message: "Could not reach Kite Passport API to verify this agent. Please retry shortly.",
+          registerAt: "https://agentpassport.ai"
+        });
+      }
+      if (passportResult.status === "not_verified") {
+        return res.status(403).json({
+          error: "Kite Passport required",
+          message: "Agent must have a registered Kite Passport to use KiteCredit",
+          registerAt: "https://agentpassport.ai"
+        });
+      }
+    } else if (passportResult.status !== "verified") {
+      // Permissive mode — log clearly but allow registration
+      console.warn(
+        `⚠️  REQUIRE_PASSPORT=false: allowing registration of ${address} with verification_status="${verificationStatus}"`
+      );
     }
+
+    const passportVerified = passportResult.status === "verified";
 
     const { data: existing } = await supabase
       .from("agents")
@@ -121,6 +174,8 @@ agentsRouter.post("/", async (req, res) => {
         agent_type: agent_type || "General Purpose",
         model_hash: model_hash || null,
         passport_verified: passportVerified,
+        passport_id: passportResult.status === "verified" ? passportResult.passportId : null,
+        verification_status: verificationStatus,
       })
       .select()
       .single();
@@ -175,23 +230,37 @@ agentsRouter.post("/sync-score", async (req, res) => {
     if (!scoreRes.ok) throw new Error(`Oracle returned ${scoreRes.status}`);
     const scoreData: any = await scoreRes.json();
 
-    // Check Passport MCP
-    const passportVerified = await verifyPassport(agentAddress);
+    // Check Passport
+    const passportResult = await verifyPassport(agentAddress);
 
     // Update Supabase cache with the real on-chain score
     try {
+      const updateFields: Record<string, any> = {
+        address:        agentAddress.toLowerCase(),
+        score:          scoreData.score,
+        payment_rate:   scoreData.paymentRate,
+        diversity:      scoreData.diversity,
+        tx_count:       scoreData.txCount,
+        age_days:       scoreData.agentAgeDays,
+        last_synced_at: new Date().toISOString()
+      };
+
+      if (passportResult.status === "verified") {
+        updateFields.passport_verified = true;
+        updateFields.passport_id = passportResult.passportId;
+        updateFields.verification_status = "verified";
+      } else if (passportResult.status === "not_verified") {
+        updateFields.passport_verified = false;
+        updateFields.passport_id = null;
+        updateFields.verification_status = "unverified";
+      } else {
+        // "unknown" — API unreachable, preserve nothing about passport, mark unknown
+        updateFields.verification_status = "unknown";
+      }
+
       const { error } = await supabase
         .from("agents")
-        .upsert({
-          address:        agentAddress.toLowerCase(),
-          score:          scoreData.score,
-          payment_rate:   scoreData.paymentRate,
-          diversity:      scoreData.diversity,
-          tx_count:       scoreData.txCount,
-          age_days:       scoreData.agentAgeDays,
-          passport_verified: passportVerified,
-          last_synced_at: new Date().toISOString()
-        }, { onConflict: "address" });
+        .upsert(updateFields, { onConflict: "address" });
       if (error) console.error("Supabase error:", error);
     } catch (e: any) {
       console.error("Supabase offline, skipping write:", e);
@@ -202,8 +271,8 @@ agentsRouter.post("/sync-score", async (req, res) => {
       address:    agentAddress,
       score:      scoreData.score,
       source:     "AgentScoreAttestation on Kite chain",
-      contract:   "0xF04B3a11db07d206F61Bf08645169793cbD442C3",
-      explorerUrl: `https://testnet.kitescan.ai/address/0xF04B3a11db07d206F61Bf08645169793cbD442C3`
+      contract:   "0x71DA928CbCF09515112eE792123b1F32A2229458",
+      explorerUrl: `https://testnet.kitescan.ai/address/0x71DA928CbCF09515112eE792123b1F32A2229458`
     });
 
   } catch (e: any) {

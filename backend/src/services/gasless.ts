@@ -93,6 +93,6 @@ export async function executeGaslessTransfer(toAddress: string, amountUi: number
 }
 
 export async function testGasless() {
-  const result = await executeGaslessTransfer("0x55d829A66BB1D9f82923cBDEe355249EE5940365", 0.011);
+  const result = await executeGaslessTransfer(process.env.ORACLE_WALLET_ADDRESS || "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c", 0.011);
   console.log("Gasless test result:", result);
 }

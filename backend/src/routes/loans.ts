@@ -29,7 +29,7 @@ loansRouter.get("/terms/:address", async (req, res) => {
 
     const { data: agent } = await supabase
       .from("agents")
-      .select("score")
+      .select("score, verification_status")
       .eq("address", address)
       .single();
 
@@ -38,7 +38,7 @@ loansRouter.get("/terms/:address", async (req, res) => {
     }
 
     const terms = assessEligibility(agent.score);
-    res.json(terms);
+    res.json({ ...terms, verificationStatus: agent.verification_status || "unverified" });
   } catch (err) {
     console.error("GET /loans/terms/:address error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -91,11 +91,11 @@ loansRouter.post("/borrow", async (req, res) => {
     await supabase
       .from("loans")
       .upsert({
-        agent_address:  agentAddress,
-        borrowed_amount: amount,
-        tx_hash:        tx.hash,
-        status:         "active",
-        created_at:     new Date().toISOString()
+        borrower_address: agentAddress,
+        amount:           amount,
+        tx_hash:          tx.hash,
+        status:           "active",
+        created_at:       new Date().toISOString()
       });
 
     return res.json({

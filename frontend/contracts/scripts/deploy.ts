@@ -11,7 +11,7 @@ async function main() {
   console.log("Connected to network:", network.name, network.config.chainId);
 
   // ── Existing contracts (already deployed by Nate) ──
-  const AGENT_SCORE_ATTESTATION = "0xF04B3a11db07d206F61Bf08645169793cbD442C3";
+  const AGENT_SCORE_ATTESTATION = "0x71DA928CbCF09515112eE792123b1F32A2229458";
   const PYUSD_ADDRESS = "0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9";
 
   console.log("\nUsing existing contracts:");

@@ -4,7 +4,7 @@ dotenv.config();
 
 const KITE_RPC     = "https://rpc-testnet.gokite.ai";
 const PYUSD        = "0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9";
-const LENDING_POOL = "0x16c110a07640831b98EF82dFFa3D2eBF8c8067dE";
+const LENDING_POOL = "0xC84c34835BEB8A4fb180979E1A4b567A6fC9F9dE";
 
 const WALLETS = {
   agent:    "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",

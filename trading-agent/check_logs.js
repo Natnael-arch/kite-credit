@@ -2,8 +2,8 @@ const { ethers } = require('ethers');
 const provider = new ethers.JsonRpcProvider("https://rpc-testnet.gokite.ai/");
 
 const VAULT = "0x30980D5Efd3489B65D3dc0E65b61C01B357a8DBa";
-const ORACLE = "0xF04B3a11db07d206F61Bf08645169793cbD442C3";
-const X402 = "0x18BE09e6986B61eAa7Cbe4fA21Df1b512DDFc252";
+const ORACLE = "0x71DA928CbCF09515112eE792123b1F32A2229458";
+const X402 = "0xd414b8c0c4FF3F3a1befc2a13293EE4BCF39F337";
 
 async function checkLogs() {
   const vaultOpenTopic = ethers.id("PositionOpened(uint256,address,string,uint8,uint256,uint256)");

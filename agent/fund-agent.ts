@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 
 const RPC = "https://rpc-testnet.gokite.ai/";
 const PYUSD = "0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9";
-const POOL_KEY = "2e2b55a75d5f5da56353c8f275b495aec324d49d2ecac7b7c0d52f330e956f2d";
+const POOL_KEY = process.env.POOL_PRIVATE_KEY || "";
 const AGENT_WALLET = "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c";
 
 const ERC20_ABI = [

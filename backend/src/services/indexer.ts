@@ -1,28 +1,42 @@
 import { ethers } from "ethers";
 import { config, supabase } from "../config.js";
-import AgentScoreAttestationABI from "../../../contracts/artifacts/contracts/AgentScoreAttestation.sol/AgentScoreAttestation.json" with { type: "json" };
-import X402ProcessorABI from "../../../frontend/contracts/artifacts/contracts/X402Processor.sol/X402Processor.json" with { type: "json" };
-import LendingPoolABI from "../../../frontend/contracts/artifacts/contracts/LendingPool.sol/LendingPool.json" with { type: "json" };
 import fs from "fs";
 import path from "path";
+
+// ABI files live in backend/src/abis/ — loaded at runtime via fs, not TS import,
+// so they don't need to be in dist/. process.cwd() = backend project root.
+const abisDir = path.resolve(process.cwd(), "src", "abis");
+
+// Load local ABI-only JSON files (extracted from Hardhat artifacts)
+const AgentScoreAttestationABI: any[] = JSON.parse(
+  fs.readFileSync(path.join(abisDir, "AgentScoreAttestation.json"), "utf8")
+);
+const X402ProcessorABI: any[] = JSON.parse(
+  fs.readFileSync(path.join(abisDir, "X402Processor.json"), "utf8")
+);
+const LendingPoolABI: any[] = JSON.parse(
+  fs.readFileSync(path.join(abisDir, "LendingPool.json"), "utf8")
+);
+
+// Load deployed contract addresses (local copy — keep in sync after redeploys)
+const addressesPath = path.join(abisDir, "deployed-addresses.json");
 
 export async function startIndexer() {
   console.log("🚀 Starting Resilient Blockchain Indexer (Polling Mode)...");
 
   const provider = new ethers.JsonRpcProvider(config.kiteRpcUrl);
-  
+
   // Load addresses
-  const addressPath = path.resolve(process.cwd(), "../frontend/contracts/deployed-addresses.json");
-  if (!fs.existsSync(addressPath)) {
-    console.warn("⚠️ No deployed-addresses.json found. Indexer will wait.");
+  if (!fs.existsSync(addressesPath)) {
+    console.warn("⚠️ No deployed-addresses.json found in backend/src/abis/. Indexer will wait.");
     return;
   }
 
-  const addresses = JSON.parse(fs.readFileSync(addressPath, "utf8"));
+  const addresses = JSON.parse(fs.readFileSync(addressesPath, "utf8"));
 
-  const agentScoreAttestation = new ethers.Contract(addresses.agentScoreAttestation, AgentScoreAttestationABI.abi, provider);
-  const x402Processor = new ethers.Contract(addresses.x402Processor, X402ProcessorABI.abi, provider);
-  const lendingPool = new ethers.Contract(addresses.lendingPool, LendingPoolABI.abi, provider);
+  const agentScoreAttestation = new ethers.Contract(addresses.agentScoreAttestation, AgentScoreAttestationABI, provider);
+  const x402Processor = new ethers.Contract(addresses.x402Processor, X402ProcessorABI, provider);
+  const lendingPool = new ethers.Contract(addresses.lendingPool, LendingPoolABI, provider);
 
   // Track the last block we processed to avoid duplicates
   let lastProcessedBlock = await provider.getBlockNumber();
@@ -46,11 +60,13 @@ export async function startIndexer() {
         console.log(`🔗 Indexer: ScoreAttested [${agentAddress}] -> ${newScore}`);
         
         // Upsert agent to ensure they exist and update score
+        // Indexer has no passport context — mark as "unknown"
         await supabase.from("agents").upsert({
           address: agentAddress,
           score: Number(newScore),
           name: "Autonomous Agent",
           identity_status: "Verified",
+          verification_status: "unknown",
           updated_at: new Date(Number(timestamp) * 1000).toISOString()
         });
       }

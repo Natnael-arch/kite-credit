@@ -7,7 +7,7 @@ async function main() {
   const wallet = new ethers.Wallet(process.env.ORACLE_PRIVATE_KEY!, provider);
 
   const contract = new ethers.Contract(
-    "0xF04B3a11db07d206F61Bf08645169793cbD442C3",
+    "0x71DA928CbCF09515112eE792123b1F32A2229458",
     ["function attest(address agent, uint16 score, uint8 paymentRate, uint8 diversity, uint32 txCount, uint16 agentAgeDays) external"],
     wallet
   );

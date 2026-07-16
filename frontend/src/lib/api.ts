@@ -62,6 +62,7 @@ export const api = {
       x402Reliability: number;
       failedPayments: number;
       totalPayments: number;
+      verificationStatus: "verified" | "unverified" | "unknown";
       passport: {
         agentType: string;
         modelHash: string;
@@ -76,6 +77,7 @@ export const api = {
       name: string;
       score: number;
       agent_type: string;
+      verification_status: "verified" | "unverified" | "unknown";
     }>>("/api/agents"),
 
   registerAgent: (data: {
@@ -108,6 +110,7 @@ export const api = {
       maxLoan: number;
       interestRate: number;
       repaymentSplit: number;
+      verificationStatus: "verified" | "unverified" | "unknown";
       message?: string;
     }>(`/api/loans/terms/${encodeURIComponent(address)}`),
 

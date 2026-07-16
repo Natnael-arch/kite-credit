@@ -11,12 +11,14 @@ CREATE TABLE IF NOT EXISTS agents (
   agent_type TEXT NOT NULL DEFAULT 'General Purpose',
   model_hash TEXT,
   identity_status TEXT NOT NULL DEFAULT 'Unverified' CHECK (identity_status IN ('Verified', 'Pending', 'Unverified')),
+  verification_status TEXT NOT NULL DEFAULT 'unverified' CHECK (verification_status IN ('verified', 'unverified', 'unknown')),
   score INTEGER NOT NULL DEFAULT 300 CHECK (score >= 300 AND score <= 850),
   transaction_volume NUMERIC(20, 6) NOT NULL DEFAULT 0,
   total_payments INTEGER NOT NULL DEFAULT 0,
   failed_payments INTEGER NOT NULL DEFAULT 0,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  passport_id TEXT
 );
 
 -- 2. Lending pool — tracks global pool state

@@ -11,7 +11,7 @@ import { Shield, Zap, Clock, AlertTriangle, ExternalLink, CreditCard, Activity, 
 export default function Borrow() {
   const { account, isConnected } = useWallet();
   const [borrowAmount, setBorrowAmount] = useState("");
-  const [loanTerms, setLoanTerms] = useState<{ eligible: boolean; maxLoan: number; interestRate: number; repaymentSplit: number } | null>(null);
+  const [loanTerms, setLoanTerms] = useState<{ eligible: boolean; maxLoan: number; interestRate: number; repaymentSplit: number; verificationStatus?: "verified" | "unverified" | "unknown" } | null>(null);
   const [loanHistory, setLoanHistory] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   
@@ -64,7 +64,8 @@ export default function Borrow() {
           eligible: creditScore >= minCreditScore,
           maxLoan: getMaxLoanByScore(creditScore),
           interestRate: getInterestRateByScore(creditScore),
-          repaymentSplit: 30
+          repaymentSplit: 30,
+          verificationStatus: "unknown"
         });
       });
   }, [account, creditScore]);
@@ -216,6 +217,18 @@ export default function Borrow() {
         <GlassCard delay={0.2} className="flex flex-col items-center">
           <h3 className="text-lg font-semibold mb-6">Your Credit Score</h3>
           <CreditScoreGauge score={Math.min(Math.max(agentData?.score || 0, 300), 850)} maxScore={850} />
+          {loanTerms?.verificationStatus && loanTerms.verificationStatus !== "verified" && (
+            <div className={`mt-4 w-full px-3 py-2 rounded-lg text-xs font-medium text-center ${
+              loanTerms.verificationStatus === "unknown"
+                ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+            }`}>
+              {loanTerms.verificationStatus === "unknown"
+                ? "Passport status unknown — score may be incomplete"
+                : "Unverified — no Kite Passport. Score may be incomplete."
+              }
+            </div>
+          )}
           <div className="mt-6 w-full space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Range</span>
@@ -396,7 +409,7 @@ export default function Borrow() {
             </div>
           ) : (
             loanHistory.map((loan: any, i: number) => {
-              const amount = parseFloat(loan.borrowed_amount || loan.amount || 0);
+              const amount = parseFloat(loan.amount || 0);
               const status = loan.status === "active" ? "Active" : "Repaid";
               const date = loan.created_at ? new Date(loan.created_at).toLocaleDateString() : "Recently";
               const rate = getInterestRateByScore(creditScore);

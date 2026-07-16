@@ -160,7 +160,7 @@ export async function refreshScoreViaPassport(agentAddr: string): Promise<any> {
     if (!session) throw new Error("No active Passport session");
 
     const payerAddr = session.payerAddr;
-    const payeeAddr = "0x55d829A66BB1D9f82923cBDEe355249EE5940365";
+    const payeeAddr = process.env.ORACLE_WALLET_ADDRESS || "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c";
     const amount    = "10000000000000000"; // 0.01 PYUSD
     const asset     = "0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9";
 

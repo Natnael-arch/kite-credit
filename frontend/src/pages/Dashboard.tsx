@@ -161,13 +161,19 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground">Agent Name</p>
                 <p className="font-semibold flex items-center gap-2">
                   {agentData.name}
-                  {agentData.passportVerified ? (
+                  {agentData.verificationStatus === "verified" ? (
                     <span title="Kite Passport Verified — cryptographic agent identity" className="text-green-500 cursor-help">
                       <ShieldCheck className="w-4 h-4" />
                     </span>
                   ) : (
-                    <span title="No Passport — wallet address only" className="text-gray-400 cursor-help">
-                      <ShieldQuestion className="w-4 h-4" />
+                    <span
+                      title={agentData.verificationStatus === "unknown" ? "Passport status unknown — API unreachable" : "No Kite Passport — scores may be incomplete"}
+                      className="cursor-help"
+                    >
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                        <ShieldQuestion className="w-3 h-3" />
+                        {agentData.verificationStatus === "unknown" ? "Status Unknown" : "Unverified — no Kite Passport"}
+                      </span>
                     </span>
                   )}
                 </p>
@@ -227,10 +233,14 @@ export default function Dashboard() {
                 >
                   <td className="py-3 font-medium">
                     {agent.name}
-                    {!agent.passport_verified && (
-                      <div className="text-xs text-amber-500/80 mt-1 flex flex-col gap-1">
-                        <span>⚠️ No Passport — this agent cannot access full KiteCredit services.</span>
-                        <a href="https://agentpassport.ai" className="underline hover:text-amber-400 w-fit">Register Passport →</a>
+                    {agent.verification_status !== "verified" && (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                          {agent.verification_status === "unknown" ? "Status Unknown" : "Unverified — no Kite Passport"}
+                        </span>
+                        {agent.verification_status === "unverified" && (
+                          <a href="https://agentpassport.ai" className="block text-xs text-amber-500/70 underline hover:text-amber-400 mt-0.5 w-fit">Register Passport →</a>
+                        )}
                       </div>
                     )}
                   </td>

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useWallet } from "@/contexts/WalletContext";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { UserPlus, CheckCircle, AlertCircle, Bot, Shield, Sparkles, Loader2 } from "lucide-react";
+import { UserPlus, CheckCircle, AlertCircle, Bot, Shield, Sparkles, Loader2, ShieldAlert } from "lucide-react";
 
 export default function RegisterAgent() {
   const { account, isConnected } = useWallet();
@@ -68,13 +68,20 @@ export default function RegisterAgent() {
         model_hash: "0x" + Math.random().toString(16).slice(2, 34).padEnd(32, '0'),
       });
 
-      toast.success("AI Agent registered successfully!");
       setJustRegistered(true);
       setIsAlreadyRegistered(true);
       
       // Fetch the newly registered agent data
       const agentData = await api.getAgent(account);
       setRegisteredAgentData(agentData);
+
+      if (agentData.verificationStatus === "verified") {
+        toast.success("AI Agent registered successfully!");
+      } else if (agentData.verificationStatus === "unknown") {
+        toast.warning("Agent registered, but Passport status could not be verified (API unreachable). Scores will be labeled as unverified.");
+      } else {
+        toast.warning("Agent registered without Kite Passport verification. Scores will be labeled as unverified.");
+      }
     } catch (error: any) {
       console.error("Registration failed:", error);
       toast.error(error.message || "Failed to register agent. This wallet may already be registered.");
@@ -141,7 +148,13 @@ export default function RegisterAgent() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <span className="text-green-500">Active ✓</span>
+                {registeredAgentData.verificationStatus === "verified" ? (
+                  <span className="text-green-500">Verified ✓</span>
+                ) : registeredAgentData.verificationStatus === "unknown" ? (
+                  <span className="text-amber-500">Status Unknown</span>
+                ) : (
+                  <span className="text-amber-500">Unverified — no Kite Passport</span>
+                )}
               </div>
             </div>
             <div className="mt-6 flex gap-3">
@@ -199,6 +212,16 @@ export default function RegisterAgent() {
                 >
                   🔗 Get a Kite Passport first
                 </a>
+
+                <button
+                  onClick={() => {
+                    setHasPassport(true);
+                    setPassportChecked(true);
+                  }}
+                  className="w-full py-2.5 rounded-lg border border-dashed border-amber-500/40 text-amber-500/80 text-sm font-medium hover:bg-amber-500/5 transition-colors"
+                >
+                  Skip for now (testing mode — agent will be unverified)
+                </button>
               </div>
             </div>
           </GlassCard>
