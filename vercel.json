@@ -1,5 +1,0 @@
-{
-  "_comment": "Vercel Root Directory is set to frontend/ — see frontend/vercel.json",
-  "installCommand": "npm install",
-  "buildCommand": "npm run build"
-}
