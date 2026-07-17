@@ -1,6 +1,6 @@
 type SignAuthMessage = (payload: any) => Promise<{ signature: string; timestamp: string }>;
 
-const API_URL = import.meta.env.PROD ? "" : (import.meta.env.VITE_API_URL || "http://localhost:3001");
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "" : "http://localhost:3001");
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: HeadersInit = {

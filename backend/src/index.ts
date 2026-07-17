@@ -29,13 +29,14 @@ app.use("/api/lending", lendingRouter);
 app.use("/api/transactions", transactionsRouter);
 app.use("/api/pool", poolRouter);
 
-// Export for Vercel serverless
+// Export for potential serverless use
 export default app;
 
-// Only listen if not running in a serverless environment
-if (process.env.NODE_ENV !== "production") {
+// Only Vercel's serverless runtime skips calling listen() itself.
+// Railway (and any normal long-running host) needs this to always run.
+if (!process.env.VERCEL) {
   app.listen(config.port, () => {
-    console.log(`KiteCredit API running on http://localhost:${config.port}`);
+    console.log(`KiteCredit API running on port ${config.port}`);
   });
 }
 
