@@ -23,6 +23,10 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+app.get("/", (_req, res) => {
+  res.send("KiteCredit Backend is running");
+});
+
 app.use("/api/agents", agentsRouter);
 app.use("/api/loans", loansRouter);
 app.use("/api/lending", lendingRouter);
@@ -35,7 +39,7 @@ export default app;
 // Only Vercel's serverless runtime skips calling listen() itself.
 // Railway (and any normal long-running host) needs this to always run.
 if (!process.env.VERCEL) {
-  app.listen(config.port, () => {
+  app.listen(config.port, "0.0.0.0", () => {
     console.log(`KiteCredit API running on port ${config.port}`);
   });
 }
