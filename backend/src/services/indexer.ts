@@ -3,9 +3,13 @@ import { config, supabase } from "../config.js";
 import fs from "fs";
 import path from "path";
 
-// ABI files live in backend/src/abis/ — loaded at runtime via fs, not TS import,
-// so they don't need to be in dist/. process.cwd() = backend project root.
-const abisDir = path.resolve(process.cwd(), "src", "abis");
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// When compiled, this file is in dist/services/indexer.js
+// So we go up two levels to reach the backend root, then into src/abis
+const abisDir = path.resolve(__dirname, "../../src/abis");
 
 // Load local ABI-only JSON files (extracted from Hardhat artifacts)
 const AgentScoreAttestationABI: any[] = JSON.parse(

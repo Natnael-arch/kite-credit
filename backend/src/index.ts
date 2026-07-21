@@ -35,7 +35,7 @@ export default app;
 // Only Vercel's serverless runtime skips calling listen() itself.
 // Railway (and any normal long-running host) needs this to always run.
 if (!process.env.VERCEL) {
-  app.listen(config.port, () => {
+  app.listen(config.port, "0.0.0.0", () => {
     console.log(`KiteCredit API running on port ${config.port}`);
   });
 }
