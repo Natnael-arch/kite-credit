@@ -127,7 +127,10 @@ agentsRouter.post("/", async (req, res) => {
       return res.status(400).json({ error: "address is required" });
     }
 
+    console.log(`[register] start for ${req.body?.address}`);
+
     const passportResult = await verifyPassport(address);
+    console.log(`[register] passport check done: ${passportResult.status}`);
     const verificationStatus = passportResultToVerificationStatus(passportResult);
 
     // ── REQUIRE_PASSPORT gate ──
@@ -162,6 +165,8 @@ agentsRouter.post("/", async (req, res) => {
       .eq("address", address)
       .single();
 
+    console.log(`[register] existing-check done`);
+
     if (existing) {
       return res.status(409).json({ error: "Agent already registered" });
     }
@@ -179,6 +184,8 @@ agentsRouter.post("/", async (req, res) => {
       })
       .select()
       .single();
+
+    console.log(`[register] insert done`);
 
     if (error) {
       console.error("Insert error:", error);

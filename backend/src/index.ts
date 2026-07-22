@@ -1,5 +1,14 @@
 import dns from "node:dns";
 dns.setDefaultResultOrder('ipv4first');
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔴 UNHANDLED REJECTION:', reason);
+  console.error('🔴 Promise:', promise);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('🔴 UNCAUGHT EXCEPTION:', err);
+});
 import express from "express";
 import cors from "cors";
 import { config } from "./config.js";
