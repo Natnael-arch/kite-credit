@@ -47,12 +47,19 @@ export async function startIndexer() {
   console.log(`📡 Starting scan from block ${lastProcessedBlock}...`);
 
   // Polling loop
-  setInterval(async () => {
+  let consecutiveFailures = 0;
+
+  async function poll() {
+    let delay = 5000; // Default poll interval: 5 seconds
+
     try {
       const currentBlock = await provider.getBlockNumber();
       // Keep a 1-block safety buffer behind the latest block to avoid RPC coalescing/unaccepted block errors
       const safeLatestBlock = currentBlock > 0 ? currentBlock - 1 : currentBlock;
-      if (safeLatestBlock <= lastProcessedBlock) return;
+      if (safeLatestBlock <= lastProcessedBlock) {
+        consecutiveFailures = 0;
+        return;
+      }
 
       const fromBlock = lastProcessedBlock + 1;
       const toBlock = safeLatestBlock;
@@ -159,9 +166,19 @@ export async function startIndexer() {
       }
 
       lastProcessedBlock = toBlock;
+      consecutiveFailures = 0; // Reset on full success
     } catch (err) {
       console.error("Indexer Polling Error:", err);
+      consecutiveFailures++;
+      if (consecutiveFailures >= 3) {
+        delay = 30000; // 30s backoff
+        console.log(`⚠️ Multiple RPC failures (${consecutiveFailures}), backing off for 30s...`);
+      }
+    } finally {
+      setTimeout(poll, delay);
     }
-  }, 5000); // Poll every 5 seconds
+  }
+
+  poll();
 }
 
