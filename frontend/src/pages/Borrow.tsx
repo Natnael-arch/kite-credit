@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Shield, Zap, Clock, AlertTriangle, ExternalLink, CreditCard, Activity, Calendar, TrendingUp, Wallet, FileCheck, AlertOctagon, Loader2 } from "lucide-react";
 
 export default function Borrow() {
-  const { account, isConnected } = useWallet();
+  const { account, isConnected, signAuthMessage } = useWallet();
   const [borrowAmount, setBorrowAmount] = useState("");
   const [loanTerms, setLoanTerms] = useState<{ eligible: boolean; maxLoan: number; interestRate: number; repaymentSplit: number; verificationStatus?: "verified" | "unverified" | "unknown" } | null>(null);
   const [loanHistory, setLoanHistory] = useState<any[]>([]);
@@ -101,9 +101,21 @@ export default function Borrow() {
     }
     
     try {
-      const success = await borrow(borrowAmount);
-      if (success) {
+      const txHash = await borrow(borrowAmount);
+      if (txHash) {
         toast.success(`On-chain loan successful! Amount: ${borrowAmount} PYUSD`);
+        
+        try {
+          await api.recordBorrow({
+            borrower_address: account,
+            amount: parseFloat(borrowAmount),
+            txHash: txHash as string
+          }, signAuthMessage);
+        } catch (backendError) {
+          console.error("Failed to record borrow on backend", backendError);
+          toast.error("Loan executed on-chain, but failed to record in history.");
+        }
+
         setBorrowAmount("");
         refetchPosition();
       }

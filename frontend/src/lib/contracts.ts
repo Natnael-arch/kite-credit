@@ -302,7 +302,7 @@ export const useBorrowFromLendingPool = (account?: string) => {
         account: account as `0x${string}`,
       });
       
-      return !!borrowHash;
+      return borrowHash;
     } catch (error) {
       console.error('Borrow failed:', error);
       throw error;

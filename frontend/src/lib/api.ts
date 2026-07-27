@@ -114,11 +114,11 @@ export const api = {
       message?: string;
     }>(`/api/loans/terms/${encodeURIComponent(address)}`),
 
-  requestLoan: (data: { borrower_address: string; amount: number }) =>
-    request<{ loan: Record<string, unknown>; terms: Record<string, unknown> }>("/api/loans/borrow", {
+  recordBorrow: (data: { borrower_address: string; amount: number; txHash: string }, signAuthMessage: SignAuthMessage) =>
+    authenticatedRequest<{ success: boolean; message: string }>("/api/loans/borrow", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
+    }, signAuthMessage),
 
   getLoans: (address: string) =>
     request<Array<Record<string, unknown>>>(`/api/loans/${encodeURIComponent(address)}`),

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../config.js";
 import { ethers } from "ethers";
+import { requireAgentSignature } from "../middleware/auth.js";
 
 export const loansRouter = Router();
 
@@ -23,13 +24,17 @@ function assessEligibility(score: number) {
   return { eligible: true, maxLoan, interestRate, repaymentSplit: 30 };
 }
 
+const SCORE_ATTESTATION_ABI = [
+  "function getScore(address) external view returns (uint16 score, uint32 timestamp)"
+];
+
 loansRouter.get("/terms/:address", async (req, res) => {
   try {
     const { address } = req.params;
 
     const { data: agent } = await supabase
       .from("agents")
-      .select("score, verification_status")
+      .select("verification_status")
       .eq("address", address)
       .single();
 
@@ -37,79 +42,117 @@ loansRouter.get("/terms/:address", async (req, res) => {
       return res.status(404).json({ error: "Agent not found" });
     }
 
-    const terms = assessEligibility(agent.score);
-    res.json({ ...terms, verificationStatus: agent.verification_status || "unverified" });
+    let onChainScore: number = 0;
+    let onChainTimestamp: number = 0;
+    let blockTimestamp: number = 0;
+
+    try {
+      const provider = new ethers.JsonRpcProvider(process.env.KITE_RPC_URL!);
+      const scoreContract = new ethers.Contract(
+        process.env.SCORE_CONTRACT_ADDRESS!,
+        SCORE_ATTESTATION_ABI,
+        provider
+      );
+
+      const [scoreRes, latestBlock] = await Promise.all([
+        scoreContract.getScore(address),
+        provider.getBlock("latest")
+      ]);
+
+      onChainScore = Number(scoreRes[0]);
+      onChainTimestamp = Number(scoreRes[1]);
+      blockTimestamp = latestBlock!.timestamp;
+    } catch (rpcErr) {
+      console.error("RPC Error fetching on-chain score:", rpcErr);
+      return res.status(503).json({
+        error: "Could not verify on-chain score right now, please retry",
+        message: "RPC temporarily unavailable"
+      });
+    }
+
+    if (onChainScore === 0) {
+      return res.json({
+        eligible: false,
+        maxLoan: 0,
+        interestRate: 0,
+        repaymentSplit: 30,
+        message: "No on-chain score attestation exists yet",
+        verificationStatus: agent.verification_status || "unverified"
+      });
+    }
+
+    const STALE_WINDOW = 7 * 24 * 60 * 60; // 7 days in seconds
+    if (blockTimestamp - onChainTimestamp > STALE_WINDOW) {
+      return res.json({
+        eligible: false,
+        maxLoan: 0,
+        interestRate: 0,
+        repaymentSplit: 30,
+        message: "On-chain score is stale",
+        verificationStatus: agent.verification_status || "unverified"
+      });
+    }
+
+    const terms = assessEligibility(onChainScore);
+    res.json({
+      ...terms,
+      verificationStatus: agent.verification_status || "unverified"
+    });
   } catch (err) {
     console.error("GET /loans/terms/:address error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-loansRouter.post("/borrow", async (req, res) => {
+loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (req, res) => {
   try {
-    const { agentAddress, amount } = req.body;
+    const { borrower_address, amount, txHash } = req.body;
 
-    if (!agentAddress || !amount) {
+    if (!borrower_address || !amount || !txHash) {
       return res.status(400).json({
-        error: "agentAddress and amount are required"
+        error: "borrower_address, amount, and txHash are required"
       });
     }
 
-    const provider = new ethers.JsonRpcProvider(
-      process.env.KITE_RPC_URL!
-    );
+    const provider = new ethers.JsonRpcProvider(process.env.KITE_RPC_URL!);
 
-    // Use agent's own private key to sign the borrow tx
-    // Agent must sign their own borrow — cannot be done on their behalf
-    // Frontend passes signed tx or we use a server signer for demo
-    const signer = new ethers.Wallet(
-      process.env.AGENT_PRIVATE_KEY!,
-      provider
-    );
-
-    const lendingPool = new ethers.Contract(
-      process.env.LENDING_POOL_ADDRESS!,
-      LENDING_POOL_ABI,
-      signer
-    );
-
-    // Check existing loan
-    const borrower = await lendingPool.borrowers(agentAddress);
-    if (borrower.borrowedAmount > 0n) {
-      return res.status(400).json({
-        error: "Agent already has an active loan",
-        borrowed: ethers.formatUnits(borrower.borrowedAmount, 18)
-      });
+    // Verify transaction
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (!receipt) {
+      return res.status(400).json({ error: "Transaction not found on-chain" });
+    }
+    
+    if (receipt.status !== 1) {
+      return res.status(400).json({ error: "Transaction reverted on-chain" });
     }
 
-    // Execute borrow on-chain
-    const amountWei = ethers.parseUnits(amount.toString(), 18);
-    const tx = await lendingPool.borrow(amountWei);
-    await tx.wait();
+    if (receipt.to?.toLowerCase() !== process.env.LENDING_POOL_ADDRESS?.toLowerCase()) {
+      return res.status(400).json({ error: "Transaction was not sent to the Lending Pool" });
+    }
 
     // Update Supabase cache
     await supabase
       .from("loans")
       .upsert({
-        borrower_address: agentAddress,
-        amount:           amount,
-        tx_hash:          tx.hash,
-        status:           "active",
-        created_at:       new Date().toISOString()
+        borrower_address: borrower_address,
+        amount: amount,
+        tx_hash: txHash,
+        status: "active",
+        created_at: new Date().toISOString()
       });
 
     return res.json({
-      success:    true,
-      txHash:     tx.hash,
-      explorerUrl: `https://testnet.kitescan.ai/tx/${tx.hash}`,
-      borrowed:   amount,
-      message:    `Successfully borrowed ${amount} PYUSD from LendingPool`
+      success: true,
+      txHash: txHash,
+      explorerUrl: `https://testnet.kitescan.ai/tx/${txHash}`,
+      borrowed: amount,
+      message: `Successfully recorded borrow of ${amount} PYUSD`
     });
 
   } catch (err: any) {
-    console.error("[BORROW] Failed:", err.message);
+    console.error("[BORROW RECORD] Failed:", err.message);
     return res.status(500).json({
-      error:   "Borrow failed",
+      error: "Recording borrow failed",
       details: err.message
     });
   }
