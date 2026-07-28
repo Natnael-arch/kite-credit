@@ -11,9 +11,11 @@ import { Shield, Zap, Clock, AlertTriangle, ExternalLink, CreditCard, Activity, 
 export default function Borrow() {
   const { account, isConnected, signAuthMessage } = useWallet();
   const [borrowAmount, setBorrowAmount] = useState("");
-  const [loanTerms, setLoanTerms] = useState<{ eligible: boolean; maxLoan: number; interestRate: number; repaymentSplit: number; verificationStatus?: "verified" | "unverified" | "unknown" } | null>(null);
+  const [loanTerms, setLoanTerms] = useState<{ eligible: boolean; maxLoan: number; interestRate: number; repaymentSplit: number; verificationStatus?: "verified" | "unverified" | "unknown"; message?: string } | null>(null);
   const [loanHistory, setLoanHistory] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [registeredAgent, setRegisteredAgent] = useState<{name: string} | null>(null);
+  const [isAgentLoading, setIsAgentLoading] = useState(true);
   
   // Real on-chain data hooks
   const { data: onChainAgent, refetch: refetchAgent } = useAgentOnChainData(account);
@@ -21,7 +23,7 @@ export default function Borrow() {
   const { borrow, isPending } = useBorrowFromLendingPool(account);
 
   const agentData = onChainAgent ? {
-    name: "AI Agent",
+    name: registeredAgent?.name || "Unnamed Agent",
     agent_type: "Autonomous",
     score: Number(onChainAgent.score),
     txCount: Number(onChainAgent.txCount),
@@ -70,6 +72,16 @@ export default function Borrow() {
       });
   }, [account, creditScore]);
 
+  // Fetch agent registration
+  useEffect(() => {
+    if (!account) return;
+    setIsAgentLoading(true);
+    api.getAgent(account)
+      .then(agent => setRegisteredAgent(agent))
+      .catch(() => setRegisteredAgent(null))
+      .finally(() => setIsAgentLoading(false));
+  }, [account]);
+
   // Fetch loan history
   useEffect(() => {
     if (!account) return;
@@ -80,8 +92,8 @@ export default function Borrow() {
       .finally(() => setIsLoadingHistory(false));
   }, [account]);
   
-  const maxBorrowable = getMaxLoanByScore(creditScore) - borrowedAmount;
-  const canBorrow = creditScore >= minCreditScore && maxBorrowable > 0;
+  const maxBorrowable = (loanTerms?.maxLoan || 0) - borrowedAmount;
+  const canBorrow = loanTerms?.eligible === true && maxBorrowable > 0;
   
   // Fixed repayment split at 30% of x402 revenue
   const repaymentSplit = loanTerms?.repaymentSplit || 30;
@@ -91,8 +103,8 @@ export default function Borrow() {
       toast.error("Connect your wallet first");
       return;
     }
-    if (creditScore < minCreditScore) {
-      toast.error(`Credit score too low. Minimum ${minCreditScore} required.`);
+    if (!loanTerms?.eligible) {
+      toast.error(loanTerms?.message || "Not currently eligible to borrow — check your score/attestation status.");
       return;
     }
     if (!borrowAmount || parseFloat(borrowAmount) <= 0) {
@@ -141,7 +153,15 @@ export default function Borrow() {
     );
   }
 
-  if (!agentData) {
+  if (isAgentLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!registeredAgent || !agentData) {
     return (
       <div className="space-y-8">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -150,8 +170,8 @@ export default function Borrow() {
         </motion.div>
         <GlassCard className="text-center py-12">
           <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Agent Found</h3>
-          <p className="text-muted-foreground mb-6">You need to register an agent before you can borrow.</p>
+          <h3 className="text-xl font-semibold mb-2">No Agent Registered</h3>
+          <p className="text-muted-foreground mb-6">No agent registered with this wallet. You need to register an agent before you can borrow.</p>
           <button
             onClick={() => window.location.href = '/register'}
             className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:shadow-lg hover:shadow-primary/20 transition-all"
@@ -275,10 +295,10 @@ export default function Borrow() {
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             {[
-              { label: "Available Credit", value: `${maxBorrowable.toLocaleString()} PYUSD`, subtext: `Total Limit: ${getMaxLoanByScore(creditScore)}`, icon: Zap },
+              { label: "Available Credit", value: `${maxBorrowable.toLocaleString()} PYUSD`, subtext: `Total Limit: ${loanTerms?.maxLoan || 0}`, icon: Zap },
               { label: "Current Debt", value: `${borrowedAmount.toLocaleString()} PYUSD`, subtext: "On-chain liability", icon: CreditCard },
-              { label: "Interest Rate", value: `5.0%`, subtext: "Annual APY", icon: Shield },
-              { label: "Repayment", value: "x402 Auto-Split", subtext: "30% Revenue Share", icon: Zap },
+              { label: "Interest Rate", value: `${(loanTerms?.interestRate || 0).toFixed(1)}%`, subtext: "Annual APY", icon: Shield },
+              { label: "Repayment", value: "x402 Auto-Split", subtext: `${repaymentSplit}% Revenue Share`, icon: Zap },
             ].map((item, i) => (
               <div key={item.label} className="bg-muted/30 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -313,7 +333,7 @@ export default function Borrow() {
             </div>
             
             {/* Reputation Risk Warning */}
-            {creditScore < 600 && (
+            {creditScore < 500 && (
               <div className="flex items-start gap-2 mt-3 p-3 bg-yellow-500/10 rounded-lg">
                 <AlertOctagon className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
                 <div className="text-sm">
@@ -332,9 +352,9 @@ export default function Borrow() {
               <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
               <h4 className="font-semibold mb-2">Cannot Borrow</h4>
               <p className="text-sm text-muted-foreground">
-                {creditScore < minCreditScore 
-                  ? `Your credit score (${creditScore}) is below the minimum required (${minCreditScore}). Build your reputation first.`
-                  : "No credit available. Maximum loan amount is 0."
+                {!loanTerms?.eligible 
+                  ? loanTerms?.message || "Not currently eligible to borrow — check your score/attestation status."
+                  : "No credit available. Maximum loan amount reached."
                 }
               </p>
             </div>
@@ -427,7 +447,7 @@ export default function Borrow() {
               const amount = parseFloat(loan.amount || 0);
               const status = loan.status === "active" ? "Active" : "Repaid";
               const date = loan.created_at ? new Date(loan.created_at).toLocaleDateString() : "Recently";
-              const rate = getInterestRateByScore(creditScore);
+              const rate = loanTerms?.interestRate || 0;
               
               return (
                 <motion.div
