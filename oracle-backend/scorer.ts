@@ -87,6 +87,7 @@ function scoreSessionDiscipline(history: PassportHistory): number {
  */
 export interface ScoreResult {
   score: number;
+  grade: string;
   paymentRate: number;
   diversity: number;
   txCount: number;
@@ -337,8 +338,17 @@ export async function computeScoreLegacy(agentAddress: string): Promise<ScoreRes
   const totalPoints = repaymentPoints + p_paymentRate + p_txVolume + p_age + p_diversity + p_sessions + tradingPoints;
   const score = Math.min(850, Math.max(300, Math.round(300 + totalPoints)));
 
+function scoreToGrade(score: number): string {
+  if (score < 500) return "Poor";
+  if (score < 600) return "Fair";
+  if (score < 700) return "Good";
+  if (score < 800) return "Excellent";
+  return "Elite";
+}
+
   return {
     score,
+    grade: scoreToGrade(score),
     paymentRate,
     diversity,
     txCount,
@@ -358,6 +368,7 @@ export async function computeScoreLegacy(agentAddress: string): Promise<ScoreRes
 function emptyScore(): ScoreResult {
   return {
     score: 300,
+    grade: scoreToGrade(300),
     paymentRate: 0,
     diversity: 0,
     txCount: 0,
@@ -423,6 +434,7 @@ export async function computeScore(
 
   return {
     score: Math.round(finalScore),
+    grade: scoreToGrade(Math.round(finalScore)),
     paymentRate,
     diversity: uniquePayeesCount,
     txCount: passportHistory.totalPayments,
