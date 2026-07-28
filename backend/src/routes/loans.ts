@@ -8,7 +8,8 @@ export const loansRouter = Router();
 const LENDING_POOL_ABI = [
   "function borrow(uint256 amount) external",
   "function borrowers(address) external view returns (uint256 borrowedAmount, uint256 lastBorrowTime, uint256 collateralAmount, bool isCollateralLocked, uint256 interestRateBps, uint256 accruedInterest, uint256 lastInterestUpdate)",
-  "function getScore(address) external view returns (uint16 score, uint32 timestamp)"
+  "function getScore(address) external view returns (uint16 score, uint32 timestamp)",
+  "event Borrowed(address indexed borrower, uint256 amount)"
 ];
 
 function assessEligibility(score: number) {
@@ -128,6 +129,37 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
 
     if (receipt.to?.toLowerCase() !== process.env.LENDING_POOL_ADDRESS?.toLowerCase()) {
       return res.status(400).json({ error: "Transaction was not sent to the Lending Pool" });
+    }
+
+    // Decode and verify the Borrowed event
+    const iface = new ethers.Interface(LENDING_POOL_ABI);
+    let borrowerFound = "";
+    let amountFoundWei = 0n;
+
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = iface.parseLog({ topics: log.topics as string[], data: log.data });
+        if (parsedLog && parsedLog.name === "Borrowed") {
+          borrowerFound = parsedLog.args[0]; // borrower
+          amountFoundWei = parsedLog.args[1]; // amount
+          break;
+        }
+      } catch (e) {
+        // ignore logs that don't match our ABI
+      }
+    }
+
+    if (!borrowerFound) {
+      return res.status(400).json({ error: "No Borrowed event found in this transaction" });
+    }
+
+    if (borrowerFound.toLowerCase() !== borrower_address.toLowerCase()) {
+      return res.status(400).json({ error: "Transaction borrower address does not match requested agent address" });
+    }
+
+    const amountWei = ethers.parseUnits(amount.toString(), 18);
+    if (amountFoundWei !== amountWei) {
+      return res.status(400).json({ error: "Transaction amount does not match requested amount" });
     }
 
     // Update Supabase cache

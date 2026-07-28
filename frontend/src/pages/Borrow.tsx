@@ -101,15 +101,16 @@ export default function Borrow() {
     }
     
     try {
-      const txHash = await borrow(borrowAmount);
-      if (txHash) {
+      const { hash: txHash, success } = await borrow(borrowAmount);
+      
+      if (success) {
         toast.success(`On-chain loan successful! Amount: ${borrowAmount} PYUSD`);
         
         try {
           await api.recordBorrow({
             borrower_address: account,
             amount: parseFloat(borrowAmount),
-            txHash: txHash as string
+            txHash
           }, signAuthMessage);
         } catch (backendError) {
           console.error("Failed to record borrow on backend", backendError);
@@ -118,6 +119,8 @@ export default function Borrow() {
 
         setBorrowAmount("");
         refetchPosition();
+      } else {
+        toast.error("Transaction reverted on-chain — check your score/eligibility and try again");
       }
     } catch (error: any) {
       console.error("Loan failed:", error);

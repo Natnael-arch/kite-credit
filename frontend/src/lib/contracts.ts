@@ -283,12 +283,13 @@ export const useRegisterAgentOnChain = () => {
 
 export const useBorrowFromLendingPool = (account?: string) => {
   const { writeContractAsync, isPending, data: hash } = useWriteContract();
+  const publicClient = usePublicClient();
   
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
 
-  const borrow = async (amount: string): Promise<boolean> => {
+  const borrow = async (amount: string): Promise<{ hash: string, success: boolean }> => {
     try {
       // PYUSD has 18 decimals on Kite Testnet
       const amountInWei = parseEther(amount);
@@ -302,7 +303,13 @@ export const useBorrowFromLendingPool = (account?: string) => {
         account: account as `0x${string}`,
       });
       
-      return borrowHash;
+      let success = false;
+      if (publicClient) {
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: borrowHash });
+        success = receipt.status === 'success';
+      }
+      
+      return { hash: borrowHash, success };
     } catch (error) {
       console.error('Borrow failed:', error);
       throw error;
