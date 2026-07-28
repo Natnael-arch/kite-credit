@@ -233,11 +233,11 @@ async function scoreTradingPerformance(
 }
 
 function scoreToGrade(score: number): string {
-  if (score < 500) return "Poor";
-  if (score < 600) return "Fair";
-  if (score < 700) return "Good";
-  if (score < 800) return "Excellent";
-  return "Elite";
+  const percentage = (score / 850) * 100;
+  if (percentage >= 75) return "Excellent";
+  if (percentage >= 50) return "Good";
+  if (percentage >= 25) return "Fair";
+  return "Poor";
 }
 
 // STOPGAP: Prevent score decay due to RPC block-scan window limitations.
