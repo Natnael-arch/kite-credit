@@ -1,4 +1,4 @@
-import { kiteTestnet, PYUSD_ADDRESS, LENDING_POOL_ADDRESS, AGENT_REGISTRY_ADDRESS, X402_PROCESSOR_ADDRESS } from './web3-config';
+import { kiteTestnet, PYUSD_ADDRESS, LENDING_POOL_ADDRESS, AGENT_REGISTRY_ADDRESS, X402_PROCESSOR_ADDRESS, ORACLE_WALLET_ADDRESS, SCORE_ATTESTATION_FEE } from './web3-config';
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { parseEther } from 'viem';
 // PYUSD Contract ABI (minimal)
@@ -332,4 +332,50 @@ export const useBorrowerPosition = (address: string | undefined) => {
     args: address ? [address as `0x${string}`] : undefined,
     chainId: kiteTestnet.id,
   });
+};
+
+export const usePayAndAttestScore = (account?: string) => {
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
+
+  const payAndAttest = async (agentAddress: string): Promise<{ success: boolean; score?: number; grade?: string; attestTxHash?: string; explorerUrl?: string; error?: string }> => {
+    try {
+      // 1. Send the fee payment from the connected wallet to the oracle wallet
+      const payHash = await writeContractAsync({
+        address: PYUSD_ADDRESS,
+        abi: PYUSD_ABI,
+        functionName: 'transfer',
+        args: [ORACLE_WALLET_ADDRESS, SCORE_ATTESTATION_FEE],
+        chain: kiteTestnet,
+        account: account as `0x${string}`,
+      });
+
+      // 2. Wait for the payment to actually confirm on-chain before using it as proof
+      if (!publicClient) throw new Error("No public client available");
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: payHash });
+      if (receipt.status !== 'success') {
+        return { success: false, error: "Payment transaction reverted on-chain" };
+      }
+
+      // 3. Build the x-payment header and call the gated oracle endpoint
+      const paymentHeader = btoa(JSON.stringify({ txHash: payHash }));
+      const oracleUrl = import.meta.env.VITE_ORACLE_API_URL || 'https://illustrious-cat-production.up.railway.app';
+      const res = await fetch(`${oracleUrl}/score/${agentAddress}`, {
+        headers: { 'x-payment': paymentHeader }
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        return { success: false, error: errBody.error || `Oracle returned ${res.status}` };
+      }
+
+      const data = await res.json();
+      return { success: true, score: data.score, grade: data.grade, attestTxHash: data.txHash, explorerUrl: data.explorerUrl };
+    } catch (err: any) {
+      console.error("payAndAttest failed:", err);
+      return { success: false, error: err?.shortMessage || err?.message || "Payment or attestation failed" };
+    }
+  };
+
+  return { payAndAttest };
 };

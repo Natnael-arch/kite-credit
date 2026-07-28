@@ -4,7 +4,7 @@ import { CreditScoreGauge } from "@/components/CreditScoreGauge";
 import { motion } from "framer-motion";
 import { useWallet } from "@/contexts/WalletContext";
 import { api } from "@/lib/api";
-import { useBorrowFromLendingPool, useBorrowerPosition, useAgentOnChainData } from "@/lib/contracts";
+import { useBorrowFromLendingPool, useBorrowerPosition, useAgentOnChainData, usePayAndAttestScore } from "@/lib/contracts";
 import { toast } from "sonner";
 import { Shield, Zap, Clock, AlertTriangle, ExternalLink, CreditCard, Activity, Calendar, TrendingUp, Wallet, FileCheck, AlertOctagon, Loader2 } from "lucide-react";
 
@@ -21,6 +21,10 @@ export default function Borrow() {
   const { data: onChainAgent, refetch: refetchAgent } = useAgentOnChainData(account);
   const { data: borrowerPosition, refetch: refetchPosition } = useBorrowerPosition(account);
   const { borrow, isPending } = useBorrowFromLendingPool(account);
+  
+  const { payAndAttest } = usePayAndAttestScore(account);
+  const [isAttesting, setIsAttesting] = useState(false);
+  const [attestStage, setAttestStage] = useState("");
 
   const agentData = onChainAgent ? {
     name: registeredAgent?.name || "Unnamed Agent",
@@ -137,6 +141,38 @@ export default function Borrow() {
     } catch (error: any) {
       console.error("Loan failed:", error);
       toast.error(error.message || "Blockchain transaction failed");
+    }
+  };
+
+  const handleAttest = async () => {
+    if (!account) return;
+    setIsAttesting(true);
+    setAttestStage("Sending fee payment...");
+    
+    try {
+      const res = await payAndAttest(account);
+      if (res.success) {
+        setAttestStage("Success!");
+        toast.success(`Score updated to ${res.score} (${res.grade})`, {
+          description: "Attestation recorded on-chain",
+          action: res.explorerUrl ? {
+            label: "View TX",
+            onClick: () => window.open(res.explorerUrl, "_blank")
+          } : undefined
+        });
+        
+        // Refresh data immediately
+        refetchAgent();
+        api.getLoanTerms(account).then(terms => setLoanTerms(terms)).catch(console.error);
+        
+        setTimeout(() => setIsAttesting(false), 2000);
+      } else {
+        toast.error(res.error || "Attestation failed");
+        setIsAttesting(false);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "An unexpected error occurred");
+      setIsAttesting(false);
     }
   };
 
@@ -280,6 +316,29 @@ export default function Borrow() {
                 animate={{ width: `${Math.min(((agentData?.score || 300) - 300) / 5.5, 100)}%` }}
                 transition={{ duration: 1, delay: 0.5 }}
               />
+            </div>
+            
+            <div className="pt-4 border-t border-border/50 mt-4">
+              <button
+                onClick={handleAttest}
+                disabled={isAttesting}
+                className="w-full py-2.5 rounded-lg bg-secondary text-secondary-foreground font-medium text-sm transition-all hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isAttesting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {attestStage}
+                  </>
+                ) : (
+                  <>
+                    <Activity className="w-4 h-4" />
+                    Check & Attest Score
+                  </>
+                )}
+              </button>
+              <p className="text-[10px] text-muted-foreground text-center mt-2">
+                Costs 0.01 PYUSD. Computes your score from on-chain activity and records it publicly on Kite.
+              </p>
             </div>
           </div>
         </GlassCard>
