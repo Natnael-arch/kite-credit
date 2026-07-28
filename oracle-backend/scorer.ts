@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), "../backend/.env") }); // Fallback for Supabase vars
 
 const RPC_URL = process.env.KITE_RPC_URL || "https://rpc-testnet.gokite.ai/";
 const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -231,6 +232,55 @@ async function scoreTradingPerformance(
   }
 }
 
+function scoreToGrade(score: number): string {
+  if (score < 500) return "Poor";
+  if (score < 600) return "Fair";
+  if (score < 700) return "Good";
+  if (score < 800) return "Excellent";
+  return "Elite";
+}
+
+// STOPGAP: Prevent score decay due to RPC block-scan window limitations.
+// Proper fix is reading full history from an indexer or paginated full-range RPC scanning.
+async function applyScoreDecayStopgap(agentAddress: string, newScore: ScoreResult, failCount: number): Promise<ScoreResult> {
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!sbUrl || !sbKey) return newScore;
+
+  try {
+    const res = await fetch(`${sbUrl}/rest/v1/agents?address=eq.${agentAddress}&select=score`, {
+      headers: { "apikey": sbKey, "Authorization": `Bearer ${sbKey}` }
+    });
+    if (!res.ok) return newScore;
+    
+    const data = await res.json();
+    if (!data || data.length === 0) return newScore;
+    
+    const storedScore = data[0].score;
+    let finalScoreObj = newScore;
+    
+    // Prevent decay if no new negative signals (failCount === 0)
+    if (newScore.score < storedScore && failCount === 0) {
+      console.log(`[STOPGAP] Preventing score decay for ${agentAddress}: keeping ${storedScore} instead of ${newScore.score}`);
+      finalScoreObj = { ...newScore, score: storedScore, grade: scoreToGrade(storedScore) };
+    }
+    
+    // If different, update Supabase
+    if (finalScoreObj.score !== storedScore) {
+      await fetch(`${sbUrl}/rest/v1/agents?address=eq.${agentAddress}`, {
+        method: "PATCH",
+        headers: { "apikey": sbKey, "Authorization": `Bearer ${sbKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ score: finalScoreObj.score, last_synced_at: new Date().toISOString() })
+      });
+    }
+    
+    return finalScoreObj;
+  } catch (err) {
+    console.error("[STOPGAP] Error:", err);
+    return newScore;
+  }
+}
+
 /**
  * Legacy block scanner fallback
  */
@@ -338,15 +388,7 @@ export async function computeScoreLegacy(agentAddress: string): Promise<ScoreRes
   const totalPoints = repaymentPoints + p_paymentRate + p_txVolume + p_age + p_diversity + p_sessions + tradingPoints;
   const score = Math.min(850, Math.max(300, Math.round(300 + totalPoints)));
 
-function scoreToGrade(score: number): string {
-  if (score < 500) return "Poor";
-  if (score < 600) return "Fair";
-  if (score < 700) return "Good";
-  if (score < 800) return "Excellent";
-  return "Elite";
-}
-
-  return {
+  const result = {
     score,
     grade: scoreToGrade(score),
     paymentRate,
@@ -363,6 +405,8 @@ function scoreToGrade(score: number): string {
       trading: Math.round(tradingPoints)
     }
   };
+  
+  return applyScoreDecayStopgap(agentAddress, result, failCount);
 }
 
 function emptyScore(): ScoreResult {
