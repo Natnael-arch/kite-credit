@@ -35,7 +35,7 @@ loansRouter.get("/terms/:address", async (req, res) => {
 
     const { data: agent } = await supabase
       .from("agents")
-      .select("verification_status")
+      .select("verification_status, score")
       .eq("address", address)
       .single();
 
@@ -69,6 +69,15 @@ loansRouter.get("/terms/:address", async (req, res) => {
         error: "Could not verify on-chain score right now, please retry",
         message: "RPC temporarily unavailable"
       });
+    }
+
+    // --- OPTION A: TEST MODE FALLBACK ---
+    // If testing the autonomous agent loop, allow using the database score 
+    // if the agent doesn't have an on-chain score yet.
+    if (onChainScore === 0 && process.env.ALLOW_OFFCHAIN_SCORING === "true") {
+      console.log(`[TEST MODE] Falling back to off-chain DB score for ${address}: ${agent.score}`);
+      onChainScore = agent.score;
+      onChainTimestamp = blockTimestamp; // Prevent stale check from failing
     }
 
     if (onChainScore === 0) {
