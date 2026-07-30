@@ -18,7 +18,7 @@ export default function Borrow() {
   const [isAgentLoading, setIsAgentLoading] = useState(true);
   
   // Real on-chain data hooks
-  const { data: onChainAgent, refetch: refetchAgent } = useAgentOnChainData(account);
+  const { data: onChainAgent, refetch: refetchAgent, isLoading: isOnChainLoading, isError: isOnChainError } = useAgentOnChainData(account);
   const { data: borrowerPosition, refetch: refetchPosition } = useBorrowerPosition(account);
   const { borrow, isPending } = useBorrowFromLendingPool(account);
   
@@ -189,10 +189,32 @@ export default function Borrow() {
     );
   }
 
-  if (isAgentLoading) {
+  if (isAgentLoading || isOnChainLoading) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isOnChainError) {
+    return (
+      <div className="space-y-8">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <h1 className="text-3xl font-bold gradient-text">Borrow</h1>
+          <p className="text-muted-foreground mt-1">AI agents can borrow credit based on reputation score</p>
+        </motion.div>
+        <GlassCard className="text-center py-12">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold mb-2">Error Loading On-Chain Data</h3>
+          <p className="text-muted-foreground mb-6">Could not load on-chain data — Kite's RPC may be temporarily unavailable. Please retry.</p>
+          <button
+            onClick={() => refetchAgent()}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:shadow-lg transition-all"
+          >
+            Retry
+          </button>
+        </GlassCard>
       </div>
     );
   }

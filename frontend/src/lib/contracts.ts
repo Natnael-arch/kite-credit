@@ -263,13 +263,14 @@ export const useLenderPosition = (address: string | undefined) => {
 };
 
 export const useAgentOnChainData = (address: string | undefined) => {
-  return useReadContract({
+  const result = useReadContract({
     address: AGENT_REGISTRY_ADDRESS,
     abi: AGENT_SCORE_ABI,
     functionName: 'getFullRecord',
     args: address ? [address as `0x${string}`] : undefined,
     chainId: kiteTestnet.id,
   });
+  return { data: result.data, refetch: result.refetch, isLoading: result.isLoading, isError: result.isError, error: result.error };
 };
 
 export const useRegisterAgentOnChain = () => {
