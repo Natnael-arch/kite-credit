@@ -126,15 +126,27 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
       console.log(`[TEST MODE] Simulating off-chain borrow for ${borrower_address}`);
       const fakeTxHash = "0x" + Buffer.from(Math.random().toString()).toString("hex").padEnd(64, '0');
       
-      await supabase
+      const { data: agent } = await supabase.from("agents").select("score").eq("address", borrower_address).single();
+      const terms = assessEligibility(agent?.score || 850);
+      
+      const { error } = await supabase
         .from("loans")
-        .upsert({
+        .insert({
           borrower_address: borrower_address,
           amount: amount,
           tx_hash: fakeTxHash,
           status: "active",
+          interest_rate: terms.interestRate,
+          repayment_split: terms.repaymentSplit,
+          total_owed: parseFloat(amount.toString()) * (1 + terms.interestRate / 100),
+          total_repaid: 0,
           created_at: new Date().toISOString()
         });
+
+      if (error) {
+        console.error("Test mode borrow insert error:", error);
+        return res.status(500).json({ error: "Failed to record test loan in DB", details: error.message });
+      }
 
       return res.json({
         success: true,
@@ -199,15 +211,27 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
     }
 
     // Update Supabase cache
-    await supabase
+    const { data: agent } = await supabase.from("agents").select("score").eq("address", borrower_address).single();
+    const terms = assessEligibility(agent?.score || 850);
+
+    const { error: insertError } = await supabase
       .from("loans")
-      .upsert({
+      .insert({
         borrower_address: borrower_address,
         amount: amount,
         tx_hash: txHash,
         status: "active",
+        interest_rate: terms.interestRate,
+        repayment_split: terms.repaymentSplit,
+        total_owed: parseFloat(amount.toString()) * (1 + terms.interestRate / 100),
+        total_repaid: 0,
         created_at: new Date().toISOString()
       });
+
+    if (insertError) {
+      console.error("Prod borrow insert error:", insertError);
+      return res.status(500).json({ error: "Failed to record prod loan in DB", details: insertError.message });
+    }
 
     return res.json({
       success: true,
