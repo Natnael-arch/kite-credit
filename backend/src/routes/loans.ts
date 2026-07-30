@@ -134,6 +134,7 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
         .insert({
           borrower_address: borrower_address,
           amount: amount,
+          principal: amount,
           tx_hash: fakeTxHash,
           status: "active",
           interest_rate: terms.interestRate,
@@ -219,6 +220,7 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
       .insert({
         borrower_address: borrower_address,
         amount: amount,
+        principal: amount,
         tx_hash: txHash,
         status: "active",
         interest_rate: terms.interestRate,
