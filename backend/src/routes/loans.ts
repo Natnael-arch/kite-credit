@@ -121,6 +121,30 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
   try {
     const { borrower_address, amount, txHash } = req.body;
 
+    // --- OPTION A: TEST MODE FALLBACK ---
+    if (!txHash && process.env.ALLOW_OFFCHAIN_SCORING === "true") {
+      console.log(`[TEST MODE] Simulating off-chain borrow for ${borrower_address}`);
+      const fakeTxHash = "0x" + Buffer.from(Math.random().toString()).toString("hex").padEnd(64, '0');
+      
+      await supabase
+        .from("loans")
+        .upsert({
+          borrower_address: borrower_address,
+          amount: amount,
+          tx_hash: fakeTxHash,
+          status: "active",
+          created_at: new Date().toISOString()
+        });
+
+      return res.json({
+        success: true,
+        txHash: fakeTxHash,
+        explorerUrl: `https://testnet.kitescan.ai/tx/${fakeTxHash}`,
+        borrowed: amount,
+        message: `[TEST MODE] Successfully recorded borrow of ${amount} PYUSD`
+      });
+    }
+
     if (!borrower_address || !amount || !txHash) {
       return res.status(400).json({
         error: "borrower_address, amount, and txHash are required"
