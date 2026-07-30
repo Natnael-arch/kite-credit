@@ -65,19 +65,22 @@ loansRouter.get("/terms/:address", async (req, res) => {
       blockTimestamp = latestBlock!.timestamp;
     } catch (rpcErr) {
       console.error("RPC Error fetching on-chain score:", rpcErr);
-      return res.status(503).json({
-        error: "Could not verify on-chain score right now, please retry",
-        message: "RPC temporarily unavailable"
-      });
+      if (process.env.ALLOW_OFFCHAIN_SCORING !== "true") {
+        return res.status(503).json({
+          error: "Could not verify on-chain score right now, please retry",
+          message: "RPC temporarily unavailable"
+        });
+      }
     }
 
     // --- OPTION A: TEST MODE FALLBACK ---
     // If testing the autonomous agent loop, allow using the database score 
-    // if the agent doesn't have an on-chain score yet.
-    if (onChainScore === 0 && process.env.ALLOW_OFFCHAIN_SCORING === "true") {
+    // if the agent doesn't have an on-chain score yet (or RPC is down).
+    if ((onChainScore === 0 || !blockTimestamp) && process.env.ALLOW_OFFCHAIN_SCORING === "true") {
       console.log(`[TEST MODE] Falling back to off-chain DB score for ${address}: ${agent.score}`);
       onChainScore = agent.score;
-      onChainTimestamp = blockTimestamp; // Prevent stale check from failing
+      onChainTimestamp = Math.floor(Date.now() / 1000); // Current time
+      blockTimestamp = onChainTimestamp; // Prevent stale check from failing
     }
 
     if (onChainScore === 0) {
