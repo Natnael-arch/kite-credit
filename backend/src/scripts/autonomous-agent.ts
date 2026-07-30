@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 
-const API_URL = "http://localhost:3001/api";
+const API_URL = "https://kite-credit-production.up.railway.app/api";
 
 async function runAutonomousAgent() {
   console.log("🤖 Booting Up Autonomous Agent Demo...");
