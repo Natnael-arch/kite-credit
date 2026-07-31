@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useWallet } from "@/contexts/WalletContext";
 import { toast } from "sonner";
 import { DollarSign, TrendingUp, Clock, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
-import { usePYUSDBalance, useDepositToLendingPool, useWithdrawFromLendingPool, useLenderPosition } from "@/lib/contracts";
+import { usePYUSDBalance, useDepositToLendingPool, useWithdrawFromLendingPool, useLenderPosition, usePoolOnChainStats } from "@/lib/contracts";
 import { api } from "@/lib/api";
 import { formatEther, formatUnits } from "viem";
 
@@ -13,7 +13,6 @@ export default function Lend() {
   const [amount, setAmount] = useState("");
   const [tab, setTab] = useState<"deposit" | "withdraw">("deposit");
   const [loading, setLoading] = useState(false);
-  const [poolStats, setPoolStats] = useState<any>(null);
   const [lenderData, setLenderData] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -23,6 +22,7 @@ export default function Lend() {
   const [optimisticBalance, setOptimisticBalance] = useState<number | null>(null);
 
   // Contract hooks
+  const { totalAssets, totalInterestCollected, isLoading: isPoolLoading } = usePoolOnChainStats();
   const { data: pyusdBalance, refetch: refetchBalance } = usePYUSDBalance(account);
   const { data: lenderPosition, refetch: refetchPosition } = useLenderPosition(account);
   const { deposit: contractDeposit, isPending: isDepositPending, isConfirming: isDepositConfirming } = useDepositToLendingPool(account);
@@ -36,12 +36,10 @@ export default function Lend() {
       if (refetchBalance) refetchBalance();
       if (refetchPosition) refetchPosition();
 
-      const [stats, position, recentTxs] = await Promise.all([
-        api.getPoolStats(),
+      const [position, recentTxs] = await Promise.all([
         api.getLenderPosition(account),
         api.getRecentTransactions()
       ]);
-      setPoolStats(stats);
       setLenderData(position);
       // Filter transactions related to this lender
       const lenderTxs = recentTxs?.filter((tx: any) => 
@@ -63,6 +61,9 @@ export default function Lend() {
   }, [account]);
 
   const formattedPYUSDBalance = pyusdBalance ? Number(formatUnits(pyusdBalance, 18)).toFixed(2) : '0.00';
+  const apy = totalAssets && totalAssets > 0n && totalInterestCollected 
+    ? (Number(formatEther(totalInterestCollected)) / Number(formatEther(totalAssets))) * 100 
+    : 0;
   // Prioritize live on-chain contract data as the ultimate source of truth, fallback to API data
   const baseDepositedAmount = lenderPosition ? Number(formatUnits(lenderPosition[0], 18)).toFixed(2) : 
     (lenderData ? (lenderData.deposited_amount || 0).toFixed(2) : '0.00');
@@ -208,7 +209,7 @@ export default function Lend() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Current APY</p>
-              <p className="text-2xl font-bold">{poolStats ? `${poolStats.averageApy.toFixed(1)}%` : "0.0%"}</p>
+              <p className="text-2xl font-bold">{isPoolLoading ? "Loading..." : `${apy.toFixed(1)}%`}</p>
             </div>
             <ArrowUpRight className="w-5 h-5 text-primary" />
           </div>

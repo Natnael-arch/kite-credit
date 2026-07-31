@@ -1,5 +1,5 @@
 import { kiteTestnet, PYUSD_ADDRESS, LENDING_POOL_ADDRESS, AGENT_REGISTRY_ADDRESS, X402_PROCESSOR_ADDRESS, ORACLE_WALLET_ADDRESS, SCORE_ATTESTATION_FEE } from './web3-config';
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
+import { useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { parseEther } from 'viem';
 // PYUSD Contract ABI (minimal)
 export const PYUSD_ABI = [
@@ -106,6 +106,34 @@ export const LENDING_POOL_ABI = [
       { internalType: 'uint256', name: 'borrowedAmount', type: 'uint256' },
       { internalType: 'uint256', name: 'collateralAmount', type: 'uint256' },
     ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalAssets',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalBorrowed',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalInterestAccrued',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalInterestCollected',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -379,4 +407,27 @@ export const usePayAndAttestScore = (account?: string) => {
   };
 
   return { payAndAttest };
+};
+
+export const usePoolOnChainStats = () => {
+  const { data, refetch, isLoading, isError } = useReadContracts({
+    contracts: [
+      { address: LENDING_POOL_ADDRESS, abi: LENDING_POOL_ABI, functionName: 'totalAssets' },
+      { address: LENDING_POOL_ADDRESS, abi: LENDING_POOL_ABI, functionName: 'totalBorrowed' },
+      { address: LENDING_POOL_ADDRESS, abi: LENDING_POOL_ABI, functionName: 'totalInterestAccrued' },
+      { address: LENDING_POOL_ADDRESS, abi: LENDING_POOL_ABI, functionName: 'totalInterestCollected' },
+      { address: PYUSD_ADDRESS, abi: PYUSD_ABI, functionName: 'balanceOf', args: [LENDING_POOL_ADDRESS] },
+    ],
+  });
+
+  return {
+    totalAssets: data?.[0]?.result as bigint | undefined,
+    totalBorrowed: data?.[1]?.result as bigint | undefined,
+    totalInterestAccrued: data?.[2]?.result as bigint | undefined,
+    totalInterestCollected: data?.[3]?.result as bigint | undefined,
+    availableLiquidity: data?.[4]?.result as bigint | undefined,
+    isLoading,
+    isError,
+    refetch,
+  };
 };

@@ -3,6 +3,9 @@ import { supabase } from "../config.js";
 
 export const poolRouter = Router();
 
+// DEPRECATED: This endpoint is superseded by direct on-chain reads in the frontend 
+// (usePoolOnChainStats hook) to provide genuine ground truth for TVL and liquidity.
+// Scheduled for removal once confirmed nothing else relies on it.
 poolRouter.get("/", async (_req, res) => {
   try {
     const { data: pool } = await supabase.from("lending_pool").select("*").single();

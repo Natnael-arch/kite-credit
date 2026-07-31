@@ -6,7 +6,7 @@ import { DollarSign, Users, TrendingUp, Activity, ArrowRight, Wallet, CheckCircl
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useWallet } from '@/contexts/WalletContext';
-import { usePYUSDBalance } from '@/lib/contracts';
+import { usePYUSDBalance, usePoolOnChainStats } from '@/lib/contracts';
 import { api } from '@/lib/api';
 import { useState, useEffect } from 'react';
 import { formatEther } from 'viem';
@@ -14,18 +14,12 @@ import { formatEther } from 'viem';
 export default function Dashboard() {
   const { account, isConnected } = useWallet();
   const { data: usdtBalance } = usePYUSDBalance(account);
-  const [poolStats, setPoolStats] = useState<any>(null);
+  const { totalAssets, totalBorrowed, totalInterestCollected, availableLiquidity, isLoading: isPoolLoading, isError: isPoolError } = usePoolOnChainStats();
+
   const [isAgentRegistered, setIsAgentRegistered] = useState(false);
   const [agentData, setAgentData] = useState<any>(null);
   const [recentAgents, setRecentAgents] = useState<any[]>([]);
   const [agentsError, setAgentsError] = useState<string | null>(null);
-
-  // Fetch pool stats
-  useEffect(() => {
-    api.getPoolStats()
-      .then(setPoolStats)
-      .catch((err) => console.error("Pool stats error:", err));
-  }, []);
 
   // Check if agent is registered
   useEffect(() => {
@@ -64,6 +58,11 @@ export default function Dashboard() {
   }, []);
 
   const formattedUSDTBalance = usdtBalance ? Number(formatEther(usdtBalance)).toFixed(2) : '0.00';
+  const formattedTvl = totalAssets ? Number(formatEther(totalAssets)) : 0;
+  const formattedAvailable = availableLiquidity ? Number(formatEther(availableLiquidity)) : 0;
+  const apy = totalAssets && totalAssets > 0n && totalInterestCollected 
+    ? (Number(formatEther(totalInterestCollected)) / Number(formatEther(totalAssets))) * 100 
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -87,38 +86,51 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Total Value Locked" 
-          value={poolStats ? `$${(poolStats.tvl / 1000000).toFixed(1)}M` : "$0.0M"} 
-          change={poolStats ? `${poolStats.activeLoans} active loans` : "Loading..."} 
-          positive icon={DollarSign} 
-          delay={0.1} 
-        />
-        <StatCard 
-          title="Active Agents" 
-          value={recentAgents.length.toString()} 
-          change={isAgentRegistered ? "Your agent active" : "Register your agent"} 
-          positive={isAgentRegistered} 
-          icon={Users} 
-          delay={0.2} 
-        />
-        <StatCard 
-          title="Current APY" 
-          value={poolStats ? `${poolStats.averageApy.toFixed(1)}%` : "0.0%"} 
-          change="Variable rate" 
-          positive icon={TrendingUp} 
-          delay={0.3} 
-        />
-        <StatCard 
-          title="Your PYUSD Balance" 
-          value={`${formattedUSDTBalance} PYUSD`} 
-          change={isConnected ? "Ready to lend" : "Connect wallet"} 
-          positive={isConnected} 
-          icon={Wallet} 
-          delay={0.4} 
-        />
-      </div>
+      {isPoolError ? (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-lg text-center">
+          Could not load pool data. Please check your RPC connection.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatCard 
+            title="Total Value Locked" 
+            value={isPoolLoading ? "Loading..." : `$${(formattedTvl).toFixed(1)}`} 
+            change="Real-time on-chain" 
+            positive icon={DollarSign} 
+            delay={0.1} 
+          />
+          <StatCard 
+            title="Available to Borrow" 
+            value={isPoolLoading ? "Loading..." : `$${formattedAvailable.toFixed(1)}`} 
+            change="Pool Liquidity" 
+            positive icon={Activity} 
+            delay={0.15} 
+          />
+          <StatCard 
+            title="Active Agents" 
+            value={recentAgents.length.toString()} 
+            change={isAgentRegistered ? "Your agent active" : "Register your agent"} 
+            positive={isAgentRegistered} 
+            icon={Users} 
+            delay={0.2} 
+          />
+          <StatCard 
+            title="Current APY" 
+            value={isPoolLoading ? "Loading..." : `${apy.toFixed(1)}%`} 
+            change="Variable rate" 
+            positive icon={TrendingUp} 
+            delay={0.3} 
+          />
+          <StatCard 
+            title="Your PYUSD Balance" 
+            value={`${formattedUSDTBalance} PYUSD`} 
+            change={isConnected ? "Ready to lend" : "Connect wallet"} 
+            positive={isConnected} 
+            icon={Wallet} 
+            delay={0.4} 
+          />
+        </div>
+      )}
 
       {/* Charts & Score */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
