@@ -252,7 +252,7 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
   }
 });
 
-loansRouter.post("/repay", requireAgentSignature, async (req, res) => {
+loansRouter.post("/repay", requireAgentSignature(), async (req, res) => {
   try {
     const { borrower_address, amount, txHash } = req.body;
 

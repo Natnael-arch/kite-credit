@@ -1,12 +1,11 @@
 import { ethers } from "ethers";
-import fs from "fs";
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 dotenv.config();
 
 const provider = new ethers.JsonRpcProvider(process.env.KITE_RPC_URL);
 const SCORE_CONTRACT = process.env.SCORE_CONTRACT_ADDRESS;
 const SCORE_ABI = ["function getScore(address) view returns (uint16, uint32)"];
-const scoreContract = new ethers.Contract(SCORE_CONTRACT, SCORE_ABI, provider);
+const scoreContract = new ethers.Contract(SCORE_CONTRACT!, SCORE_ABI, provider);
 
 async function check() {
   const addrs = [
