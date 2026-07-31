@@ -4,13 +4,14 @@ import { CreditScoreGauge } from "@/components/CreditScoreGauge";
 import { motion } from "framer-motion";
 import { useWallet } from "@/contexts/WalletContext";
 import { api } from "@/lib/api";
-import { useBorrowFromLendingPool, useBorrowerPosition, useAgentOnChainData, usePayAndAttestScore } from "@/lib/contracts";
+import { useBorrowFromLendingPool, useBorrowerPosition, useAgentOnChainData, usePayAndAttestScore, useRepayLoan, usePoolOnChainStats } from "@/lib/contracts";
 import { toast } from "sonner";
 import { Shield, Zap, Clock, AlertTriangle, ExternalLink, CreditCard, Activity, Calendar, TrendingUp, Wallet, FileCheck, AlertOctagon, Loader2 } from "lucide-react";
 
 export default function Borrow() {
   const { account, isConnected, signAuthMessage } = useWallet();
   const [borrowAmount, setBorrowAmount] = useState("");
+  const [repayAmount, setRepayAmount] = useState("");
   const [loanTerms, setLoanTerms] = useState<{ eligible: boolean; maxLoan: number; interestRate: number; repaymentSplit: number; verificationStatus?: "verified" | "unverified" | "unknown"; message?: string } | null>(null);
   const [loanHistory, setLoanHistory] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -18,9 +19,12 @@ export default function Borrow() {
   const [isAgentLoading, setIsAgentLoading] = useState(true);
   
   // Real on-chain data hooks
+  const { refetch: refetchPool } = usePoolOnChainStats();
   const { data: onChainAgent, refetch: refetchAgent, isLoading: isOnChainLoading, isError: isOnChainError } = useAgentOnChainData(account);
   const { data: borrowerPosition, refetch: refetchPosition } = useBorrowerPosition(account);
   const { borrow, isPending } = useBorrowFromLendingPool(account);
+  const { repay } = useRepayLoan(account);
+  const [isRepaying, setIsRepaying] = useState(false);
   
   const { payAndAttest } = usePayAndAttestScore(account);
   const [isAttesting, setIsAttesting] = useState(false);
@@ -141,6 +145,57 @@ export default function Borrow() {
     } catch (error: any) {
       console.error("Loan failed:", error);
       toast.error(error.message || "Blockchain transaction failed");
+    }
+  };
+
+  const handleRepay = async () => {
+    if (!isConnected || !account) {
+      toast.error("Connect your wallet first");
+      return;
+    }
+    if (!repayAmount || parseFloat(repayAmount) <= 0) {
+      toast.error("Enter a valid repayment amount");
+      return;
+    }
+
+    try {
+      setIsRepaying(true);
+      const { hash: txHash, success } = await repay(account, repayAmount);
+      
+      if (success) {
+        toast.success(`On-chain repayment successful! Amount: ${repayAmount} PYUSD`);
+        
+        try {
+          await api.fetchWithAuth("/loans/repay", {
+            method: "POST",
+            body: JSON.stringify({
+              borrower_address: account,
+              amount: parseFloat(repayAmount),
+              txHash
+            })
+          }, signAuthMessage);
+        } catch (backendError) {
+          console.error("Failed to record repayment on backend", backendError);
+          toast.error("Repayment executed on-chain, but failed to record in history.");
+        }
+
+        setRepayAmount("");
+        refetchPosition();
+        refetchPool();
+        
+        // Refresh loan history
+        api.getLoans(account)
+          .then(loans => setLoanHistory(Array.isArray(loans) ? loans : []))
+          .catch(console.error);
+
+      } else {
+        toast.error("Transaction reverted on-chain.");
+      }
+    } catch (error: any) {
+      console.error("Repay failed:", error);
+      toast.error(error.shortMessage || error.message || "Blockchain transaction failed");
+    } finally {
+      setIsRepaying(false);
     }
   };
 
@@ -428,7 +483,69 @@ export default function Borrow() {
             )}
           </div>
 
-          {!canBorrow ? (
+          {borrowedAmount > 0 ? (
+            <div className="space-y-4">
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-4">
+                <h4 className="font-semibold text-primary flex items-center gap-2 mb-2">
+                  <AlertOctagon className="w-4 h-4" />
+                  Active Loan
+                </h4>
+                <p className="text-sm text-muted-foreground">You currently have an active on-chain loan. Repay it to restore your borrowing capacity.</p>
+              </div>
+              
+              <div>
+                <label className="text-sm text-muted-foreground">Repay Amount (PYUSD)</label>
+                <div className="relative mt-1">
+                  <input
+                    type="number"
+                    value={repayAmount}
+                    onChange={(e) => setRepayAmount(e.target.value)}
+                    placeholder="0.00"
+                    max={borrowedAmount}
+                    className="w-full bg-muted/50 border border-border rounded-lg px-4 py-3 text-lg font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                  <button
+                    onClick={() => setRepayAmount(borrowedAmount.toFixed(2))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary hover:underline"
+                  >
+                    MAX
+                  </button>
+                </div>
+              </div>
+
+              <input
+                type="range"
+                min="0"
+                max={borrowedAmount}
+                step="50"
+                value={parseFloat(repayAmount) || 0}
+                onChange={(e) => setRepayAmount(e.target.value)}
+                className="w-full accent-primary"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>0</span>
+                <span>Owed: {borrowedAmount.toLocaleString()} PYUSD</span>
+              </div>
+
+              <button
+                onClick={handleRepay}
+                disabled={isRepaying || !repayAmount || parseFloat(repayAmount) <= 0}
+                className="w-full py-3 rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold text-sm transition-all hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isRepaying ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Wallet className="w-4 h-4" />
+                    Repay Loan
+                  </>
+                )}
+              </button>
+            </div>
+          ) : !canBorrow ? (
             <div className="text-center py-8">
               <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
               <h4 className="font-semibold mb-2">Cannot Borrow</h4>

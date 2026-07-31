@@ -137,6 +137,27 @@ export const LENDING_POOL_ABI = [
     stateMutability: 'view',
     type: 'function',
   },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'borrower', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'Repaid',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'borrower', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'principalPayment', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'loanId', type: 'uint256' },
+      { indexed: false, internalType: 'bool', name: 'fullyRepaid', type: 'bool' },
+      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+    ],
+    name: 'LoanRepayment',
+    type: 'event',
+  },
 ] as const;
 
 export const AGENT_SCORE_ABI = [
@@ -430,4 +451,51 @@ export const usePoolOnChainStats = () => {
     isError,
     refetch,
   };
+};
+
+export const useRepayLoan = (account?: string) => {
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
+
+  const repay = async (borrowerAddress: string, amount: string): Promise<{ hash: string; success: boolean }> => {
+    try {
+      const amountInWei = parseEther(amount);
+
+      // Step 1: approve PYUSD spend by the LendingPool
+      const approveHash = await writeContractAsync({
+        address: PYUSD_ADDRESS,
+        abi: PYUSD_ABI,
+        functionName: 'approve',
+        args: [LENDING_POOL_ADDRESS, amountInWei],
+        chain: kiteTestnet,
+        account: account as `0x${string}`,
+      });
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      }
+
+      // Step 2: call repay(borrowerAddress, amount)
+      const repayHash = await writeContractAsync({
+        address: LENDING_POOL_ADDRESS,
+        abi: LENDING_POOL_ABI,
+        functionName: 'repay',
+        args: [borrowerAddress as `0x${string}`, amountInWei],
+        chain: kiteTestnet,
+        account: account as `0x${string}`,
+      });
+
+      let success = false;
+      if (publicClient) {
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: repayHash });
+        success = receipt.status === 'success';
+      }
+
+      return { hash: repayHash, success };
+    } catch (error: any) {
+      console.error('Repay failed:', error);
+      throw error;
+    }
+  };
+
+  return { repay };
 };

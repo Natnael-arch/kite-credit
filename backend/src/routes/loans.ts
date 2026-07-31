@@ -252,6 +252,119 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
   }
 });
 
+loansRouter.post("/repay", requireAgentSignature, async (req, res) => {
+  try {
+    const { borrower_address, amount, txHash } = req.body;
+
+    if (!borrower_address || !amount || !txHash) {
+      return res.status(400).json({ error: "borrower_address, amount, and txHash are required" });
+    }
+
+    const provider = new ethers.JsonRpcProvider(process.env.KITE_RPC_URL!);
+
+    // Verify transaction
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (!receipt) {
+      return res.status(400).json({ error: "Transaction not found on-chain" });
+    }
+    
+    if (receipt.status !== 1) {
+      return res.status(400).json({ error: "Transaction reverted on-chain" });
+    }
+
+    if (receipt.to?.toLowerCase() !== process.env.LENDING_POOL_ADDRESS?.toLowerCase()) {
+      return res.status(400).json({ error: "Transaction was not sent to the Lending Pool" });
+    }
+
+    // Decode and verify the LoanRepayment event
+    const iface = new ethers.Interface(LENDING_POOL_ABI);
+    let borrowerFound = "";
+    let amountFoundWei = 0n;
+    let fullyRepaidFound = false;
+
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = iface.parseLog({ topics: log.topics as string[], data: log.data });
+        if (parsedLog && parsedLog.name === "LoanRepayment") {
+          borrowerFound = parsedLog.args[0]; // borrower/agent
+          amountFoundWei = parsedLog.args[1]; // principalPayment/amount
+          fullyRepaidFound = parsedLog.args[3]; // fullyRepaid
+          break;
+        }
+      } catch (e) {
+        // ignore logs that don't match our ABI
+      }
+    }
+
+    if (!borrowerFound) {
+      return res.status(400).json({ error: "No LoanRepayment event found in this transaction" });
+    }
+
+    if (borrowerFound.toLowerCase() !== borrower_address.toLowerCase()) {
+      return res.status(400).json({ error: "Transaction borrower address does not match requested agent address" });
+    }
+
+    const amountWei = ethers.parseUnits(amount.toString(), 18);
+    if (amountFoundWei !== amountWei) {
+      return res.status(400).json({ error: "Transaction amount does not match requested amount" });
+    }
+
+    // Get active loan to update
+    const { data: activeLoan, error: loanError } = await supabase
+      .from("loans")
+      .select("*")
+      .eq("borrower_address", borrower_address)
+      .eq("status", "active")
+      .single();
+
+    if (loanError || !activeLoan) {
+      return res.status(400).json({ error: "No active loan found for this borrower" });
+    }
+
+    const newTotalRepaid = parseFloat(activeLoan.total_repaid || "0") + parseFloat(amount.toString());
+    const newStatus = fullyRepaidFound ? "repaid" : "active";
+
+    const { error: updateError } = await supabase
+      .from("loans")
+      .update({
+        total_repaid: newTotalRepaid,
+        status: newStatus
+      })
+      .eq("id", activeLoan.id);
+
+    if (updateError) {
+      console.error("Prod repay update error:", updateError);
+      return res.status(500).json({ error: "Failed to update prod loan in DB", details: updateError.message });
+    }
+
+    // Insert into transactions table for history
+    await supabase.from("transactions").insert({
+      from_address: borrower_address,
+      to_address: process.env.LENDING_POOL_ADDRESS,
+      amount: amount,
+      service_name: "Manual Repayment",
+      status: "success",
+      repayment_portion: amount,
+      agent_portion: 0
+    });
+
+    return res.json({
+      success: true,
+      txHash: txHash,
+      explorerUrl: `https://testnet.kitescan.ai/tx/${txHash}`,
+      repaid: amount,
+      message: `Successfully recorded repayment of ${amount} PYUSD`
+    });
+
+  } catch (err: any) {
+    console.error("[REPAY RECORD] Failed:", err.message);
+    return res.status(500).json({
+      error: "Recording repayment failed",
+      details: err.message
+    });
+  }
+});
+
 loansRouter.get("/:address", async (req, res) => {
   try {
     const { address } = req.params;
