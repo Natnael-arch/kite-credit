@@ -29,7 +29,40 @@
       "total_interest_earned": "15"
     }
   ],
-  "loans": [],
-  "transactions": [],
-  "loan_repayments": []
+  "loans": [
+    {
+      "id": "test_loan_123",
+      "borrower_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "status": "active",
+      "amount": 10,
+      "principal": 10,
+      "total_owed": 12,
+      "total_repaid": 1,
+      "interest_rate": 5,
+      "repayment_split": 30,
+      "created_at": "2026-07-31T00:00:00Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "99mchwk",
+      "created_at": "2026-07-31T18:56:19.046Z",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0xC84c34835BEB8A4fb180979E1A4b567A6fC9F9dE",
+      "amount": "1.0",
+      "service_name": "Manual Repayment",
+      "status": "success",
+      "repayment_portion": "1.0",
+      "agent_portion": 0
+    }
+  ],
+  "loan_repayments": [
+    {
+      "id": "tv11nke",
+      "created_at": "2026-07-31T18:56:19.044Z",
+      "loan_id": "test_loan_123",
+      "amount": "1.0",
+      "source": "manual"
+    }
+  ]
 }

@@ -57,8 +57,14 @@ async function main() {
   console.log("After Liquidity:", ethers.formatUnits(afterLiquidity, 18), "PYUSD");
 
   // 6. Call backend
-  const message = "auth_request";
-  const signature = await wallet.signMessage(message);
+  const timestamp = Date.now().toString();
+  const bodyPayload = {
+    borrower_address: wallet.address,
+    amount: ethers.formatUnits(amountToRepay, 18),
+    txHash: tx2.hash
+  };
+  const messageToSign = JSON.stringify(bodyPayload) + timestamp;
+  const signature = await wallet.signMessage(messageToSign);
 
   console.log("Calling backend...");
   // Use the railway URL if localhost is down, but let's try local first
@@ -69,14 +75,9 @@ async function main() {
       headers: {
         "Content-Type": "application/json",
         "x-agent-signature": signature,
-        "x-agent-message": message,
-        "x-agent-address": wallet.address
+        "x-timestamp": timestamp
       },
-      body: JSON.stringify({
-        borrower_address: wallet.address,
-        amount: ethers.formatUnits(amountToRepay, 18),
-        txHash: tx2.hash
-      })
+      body: JSON.stringify(bodyPayload)
     });
   } catch (e) {
     console.log("Local backend failed, trying production backend on Railway...");
@@ -85,14 +86,9 @@ async function main() {
       headers: {
         "Content-Type": "application/json",
         "x-agent-signature": signature,
-        "x-agent-message": message,
-        "x-agent-address": wallet.address
+        "x-timestamp": timestamp
       },
-      body: JSON.stringify({
-        borrower_address: wallet.address,
-        amount: ethers.formatUnits(amountToRepay, 18),
-        txHash: tx2.hash
-      })
+      body: JSON.stringify(bodyPayload)
     });
   }
 

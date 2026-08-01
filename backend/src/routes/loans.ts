@@ -9,7 +9,9 @@ const LENDING_POOL_ABI = [
   "function borrow(uint256 amount) external",
   "function borrowers(address) external view returns (uint256 borrowedAmount, uint256 lastBorrowTime, uint256 collateralAmount, bool isCollateralLocked, uint256 interestRateBps, uint256 accruedInterest, uint256 lastInterestUpdate)",
   "function getScore(address) external view returns (uint16 score, uint32 timestamp)",
-  "event Borrowed(address indexed borrower, uint256 amount)"
+  "event Borrowed(address indexed borrower, uint256 amount)",
+  "event Repaid(address indexed borrower, uint256 amount)",
+  "event LoanRepayment(address indexed borrower, uint256 principalPayment, uint256 loanId, bool fullyRepaid, uint256 timestamp)"
 ];
 
 function assessEligibility(score: number) {
@@ -285,11 +287,13 @@ loansRouter.post("/repay", requireAgentSignature(), async (req, res) => {
     for (const log of receipt.logs) {
       try {
         const parsedLog = iface.parseLog({ topics: log.topics as string[], data: log.data });
-        if (parsedLog && parsedLog.name === "LoanRepayment") {
-          borrowerFound = parsedLog.args[0]; // borrower/agent
-          amountFoundWei = parsedLog.args[1]; // principalPayment/amount
-          fullyRepaidFound = parsedLog.args[3]; // fullyRepaid
-          break;
+        if (parsedLog) {
+          if (parsedLog.name === "Repaid") {
+            borrowerFound = parsedLog.args[0];
+            amountFoundWei = parsedLog.args[1];
+          } else if (parsedLog.name === "LoanRepayment") {
+            fullyRepaidFound = parsedLog.args[3]; // fullyRepaid
+          }
         }
       } catch (e) {
         // ignore logs that don't match our ABI
@@ -336,6 +340,14 @@ loansRouter.post("/repay", requireAgentSignature(), async (req, res) => {
       console.error("Prod repay update error:", updateError);
       return res.status(500).json({ error: "Failed to update prod loan in DB", details: updateError.message });
     }
+
+    await supabase
+      .from("loan_repayments")
+      .insert({
+        loan_id: activeLoan.id,
+        amount: amount,
+        source: "manual",
+      });
 
     // Insert into transactions table for history
     await supabase.from("transactions").insert({
