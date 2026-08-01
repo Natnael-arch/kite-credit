@@ -375,13 +375,14 @@ export const useBorrowFromLendingPool = (account?: string) => {
 };
 
 export const useBorrowerPosition = (address: string | undefined) => {
-  return useReadContract({
+  const result = useReadContract({
     address: LENDING_POOL_ADDRESS,
     abi: LENDING_POOL_ABI,
     functionName: 'getBorrowerPosition',
     args: address ? [address as `0x${string}`] : undefined,
     chainId: kiteTestnet.id,
   });
+  return { data: result.data, refetch: result.refetch, isLoading: result.isLoading, isError: result.isError };
 };
 
 export const usePayAndAttestScore = (account?: string) => {

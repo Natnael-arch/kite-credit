@@ -21,7 +21,7 @@ export default function Borrow() {
   // Real on-chain data hooks
   const { refetch: refetchPool } = usePoolOnChainStats();
   const { data: onChainAgent, refetch: refetchAgent, isLoading: isOnChainLoading, isError: isOnChainError } = useAgentOnChainData(account);
-  const { data: borrowerPosition, refetch: refetchPosition } = useBorrowerPosition(account);
+  const { data: borrowerPosition, refetch: refetchPosition, isLoading: isPositionLoading, isError: isPositionError } = useBorrowerPosition(account);
   const { borrow, isPending } = useBorrowFromLendingPool(account);
   const { repay } = useRepayLoan(account);
   const [isRepaying, setIsRepaying] = useState(false);
@@ -41,7 +41,7 @@ export default function Borrow() {
     registered: true
   } : null;
 
-  const borrowedAmount = borrowerPosition ? Number(borrowerPosition[0]) / (10**18) : 0;
+  const borrowedAmount = (!isPositionLoading && !isPositionError && borrowerPosition) ? Number(borrowerPosition[0]) / (10**18) : 0;
 
   // Calculate score-based loan tiers
   const creditScore = agentData?.score || 0;
@@ -244,7 +244,7 @@ export default function Borrow() {
     );
   }
 
-  if (isAgentLoading || isOnChainLoading) {
+  if (isAgentLoading || isOnChainLoading || isPositionLoading) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -483,7 +483,23 @@ export default function Borrow() {
             )}
           </div>
 
-          {borrowedAmount > 0 ? (
+          {isPositionError ? (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4 text-center">
+              <h4 className="font-semibold text-red-500 flex items-center justify-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4" />
+                Error Loading Loan Position
+              </h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Could not load your loan position — Kite's RPC may be temporarily unavailable.
+              </p>
+              <button
+                onClick={() => refetchPosition()}
+                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm font-medium transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          ) : borrowedAmount > 0 ? (
             <div className="space-y-4">
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-4">
                 <h4 className="font-semibold text-primary flex items-center gap-2 mb-2">
