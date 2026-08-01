@@ -6,15 +6,47 @@ import { DollarSign, Users, TrendingUp, Activity, ArrowRight, Wallet, CheckCircl
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useWallet } from '@/contexts/WalletContext';
-import { usePYUSDBalance, usePoolOnChainStats } from '@/lib/contracts';
+import { usePYUSDBalance, usePoolOnChainStats, useKiteBalance, useSimulateActivity, usePayAndAttestScore } from '@/lib/contracts';
 import { api } from '@/lib/api';
 import { useState, useEffect } from 'react';
-import { formatEther } from 'viem';
+import { formatEther, parseEther } from 'viem';
 
 export default function Dashboard() {
   const { account, isConnected } = useWallet();
   const { data: usdtBalance } = usePYUSDBalance(account);
   const { totalAssets, totalBorrowed, totalInterestCollected, availableLiquidity, isLoading: isPoolLoading, isError: isPoolError } = usePoolOnChainStats();
+  const { data: kiteBalance } = useKiteBalance(account);
+  const { simulate } = useSimulateActivity(account);
+  const { payAndAttest } = usePayAndAttestScore(account);
+
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulateProgress, setSimulateProgress] = useState("");
+  const [simulateError, setSimulateError] = useState("");
+
+  const handleSimulate = async () => {
+    setSimulateError("");
+    if (!usdtBalance || usdtBalance < parseEther("0.1") || !kiteBalance || kiteBalance.value < parseEther("0.005")) {
+      setSimulateError("You'll need testnet KITE and PYUSD first — see the links below.");
+      return;
+    }
+    
+    setIsSimulating(true);
+    try {
+      await simulate(setSimulateProgress);
+      setSimulateProgress("Activity generated! Triggering attestation...");
+      const result = await payAndAttest(account!);
+      if (result.success) {
+        setSimulateProgress("Attestation successful! Reloading score...");
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        setSimulateError(result.error || "Attestation failed");
+      }
+    } catch (err: any) {
+      setSimulateError(err.message || "Simulation failed");
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
   const [isAgentRegistered, setIsAgentRegistered] = useState(false);
   const [agentData, setAgentData] = useState<any>(null);
@@ -213,6 +245,46 @@ export default function Dashboard() {
               </Link>
             </div>
           )}
+        </GlassCard>
+      )}
+
+      {isConnected && (
+        <GlassCard delay={0.75} className="mt-4 border border-primary/20 bg-primary/5">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary" />
+              Testnet Utilities
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Generates real on-chain transactions so you can quickly reach a qualifying score for testing. Real agents build score through actual usage over time — this is a testnet convenience, not how scoring works in production.
+            </p>
+            
+            {simulateError && (
+              <div className="p-3 mb-2 rounded border border-red-500/20 bg-red-500/10 text-red-500 text-sm">
+                {simulateError}
+              </div>
+            )}
+            
+            {isSimulating && simulateProgress && (
+              <div className="p-3 mb-2 rounded border border-blue-500/20 bg-blue-500/10 text-blue-500 text-sm flex items-center gap-2">
+                <span className="animate-spin">⌛</span> {simulateProgress}
+              </div>
+            )}
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSimulate}
+              disabled={isSimulating}
+              className={`w-full sm:w-auto px-6 py-2 rounded-lg font-medium transition-colors ${
+                isSimulating 
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              }`}
+            >
+              {isSimulating ? 'Simulating...' : 'Simulate Agent Activity (Testnet)'}
+            </motion.button>
+          </div>
         </GlassCard>
       )}
 

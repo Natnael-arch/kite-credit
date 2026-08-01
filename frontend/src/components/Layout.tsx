@@ -97,7 +97,7 @@ export function Layout() {
       </AnimatePresence>
 
       {/* Main */}
-      <main className="pt-20 pb-8 px-4 max-w-7xl mx-auto relative z-10">
+      <main className="pt-20 pb-8 px-4 max-w-7xl mx-auto relative z-10 min-h-[calc(100vh-140px)]">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -110,6 +110,23 @@ export function Layout() {
           </motion.div>
         </AnimatePresence>
       </main>
+      
+      {/* Footer */}
+      <footer className="border-t border-border/50 bg-background/50 backdrop-blur-sm relative z-10 py-6 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+          <div>
+            KiteCredit Protocol - Testnet
+          </div>
+          <div className="flex items-center gap-6">
+            <a href="https://faucet.gokite.ai" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
+              Get testnet KITE
+            </a>
+            <a href="http://testnet.kitescan.ai/token/0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9?tab=write_contract" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
+              Get testnet PYUSD
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

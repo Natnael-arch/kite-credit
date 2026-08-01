@@ -1,5 +1,5 @@
 import { kiteTestnet, PYUSD_ADDRESS, LENDING_POOL_ADDRESS, AGENT_REGISTRY_ADDRESS, X402_PROCESSOR_ADDRESS, ORACLE_WALLET_ADDRESS, SCORE_ATTESTATION_FEE } from './web3-config';
-import { useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
+import { useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, usePublicClient, useBalance } from 'wagmi';
 import { parseEther } from 'viem';
 // PYUSD Contract ABI (minimal)
 export const PYUSD_ABI = [
@@ -200,6 +200,13 @@ export const usePYUSDBalance = (address: string | undefined) => {
     abi: PYUSD_ABI,
     functionName: 'balanceOf',
     args: address ? [address as `0x${string}`] : undefined,
+    chainId: kiteTestnet.id,
+  });
+};
+
+export const useKiteBalance = (address: string | undefined) => {
+  return useBalance({
+    address: address ? (address as `0x${string}`) : undefined,
     chainId: kiteTestnet.id,
   });
 };
@@ -499,4 +506,44 @@ export const useRepayLoan = (account?: string) => {
   };
 
   return { repay };
+};
+
+export const useSimulateActivity = (account?: string) => {
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
+  
+  const simulate = async (onProgress: (msg: string) => void) => {
+    // 10 distinct, well-known testnet addresses to interact with
+    const targets = [
+      "0x000000000000000000000000000000000000dEaD",
+      "0x1111111111111111111111111111111111111111",
+      "0x2222222222222222222222222222222222222222",
+      "0x3333333333333333333333333333333333333333",
+      "0x4444444444444444444444444444444444444444",
+      "0x5555555555555555555555555555555555555555",
+      "0x6666666666666666666666666666666666666666",
+      "0x7777777777777777777777777777777777777777",
+      "0x8888888888888888888888888888888888888888",
+      "0x9999999999999999999999999999999999999999"
+    ];
+    
+    // Transfer 0.01 PYUSD to each
+    const amountInWei = parseEther("0.01");
+    for (let i = 0; i < targets.length; i++) {
+      onProgress(`Sending transaction ${i + 1} of 10...`);
+      const hash = await writeContractAsync({
+        address: PYUSD_ADDRESS,
+        abi: PYUSD_ABI,
+        functionName: 'transfer',
+        args: [targets[i], amountInWei],
+        chain: kiteTestnet,
+        account: account as `0x${string}`,
+      });
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash });
+      }
+    }
+  };
+
+  return { simulate };
 };
