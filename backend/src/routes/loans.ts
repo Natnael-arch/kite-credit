@@ -67,23 +67,13 @@ loansRouter.get("/terms/:address", async (req, res) => {
       blockTimestamp = latestBlock!.timestamp;
     } catch (rpcErr) {
       console.error("RPC Error fetching on-chain score:", rpcErr);
-      if (process.env.ALLOW_OFFCHAIN_SCORING !== "true") {
-        return res.status(503).json({
-          error: "Could not verify on-chain score right now, please retry",
-          message: "RPC temporarily unavailable"
-        });
-      }
+      return res.status(503).json({
+        error: "Could not verify on-chain score right now, please retry",
+        message: "RPC temporarily unavailable"
+      });
     }
 
-    // --- OPTION A: TEST MODE FALLBACK ---
-    // If testing the autonomous agent loop, allow using the database score 
-    // if the agent doesn't have an on-chain score yet (or RPC is down).
-    if ((onChainScore === 0 || !blockTimestamp) && process.env.ALLOW_OFFCHAIN_SCORING === "true") {
-      console.log(`[TEST MODE] Falling back to off-chain DB score for ${address}: ${agent.score}`);
-      onChainScore = agent.score;
-      onChainTimestamp = Math.floor(Date.now() / 1000); // Current time
-      blockTimestamp = onChainTimestamp; // Prevent stale check from failing
-    }
+
 
     if (onChainScore === 0) {
       return res.json({
@@ -123,42 +113,7 @@ loansRouter.post("/borrow", requireAgentSignature("borrower_address"), async (re
   try {
     const { borrower_address, amount, txHash } = req.body;
 
-    // --- OPTION A: TEST MODE FALLBACK ---
-    if (!txHash && process.env.ALLOW_OFFCHAIN_SCORING === "true") {
-      console.log(`[TEST MODE] Simulating off-chain borrow for ${borrower_address}`);
-      const fakeTxHash = "0x" + Buffer.from(Math.random().toString()).toString("hex").padEnd(64, '0');
-      
-      const { data: agent } = await supabase.from("agents").select("score").eq("address", borrower_address).single();
-      const terms = assessEligibility(agent?.score || 850);
-      
-      const { error } = await supabase
-        .from("loans")
-        .insert({
-          borrower_address: borrower_address,
-          amount: amount,
-          principal: amount,
-          tx_hash: fakeTxHash,
-          status: "active",
-          interest_rate: terms.interestRate,
-          repayment_split: terms.repaymentSplit,
-          total_owed: parseFloat(amount.toString()) * (1 + terms.interestRate / 100),
-          total_repaid: 0,
-          created_at: new Date().toISOString()
-        });
 
-      if (error) {
-        console.error("Test mode borrow insert error:", error);
-        return res.status(500).json({ error: "Failed to record test loan in DB", details: error.message });
-      }
-
-      return res.json({
-        success: true,
-        txHash: fakeTxHash,
-        explorerUrl: `https://testnet.kitescan.ai/tx/${fakeTxHash}`,
-        borrowed: amount,
-        message: `[TEST MODE] Successfully recorded borrow of ${amount} PYUSD`
-      });
-    }
 
     if (!borrower_address || !amount || !txHash) {
       return res.status(400).json({
