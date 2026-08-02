@@ -109,3 +109,16 @@ CREATE OR REPLACE TRIGGER agents_updated_at BEFORE UPDATE ON agents FOR EACH ROW
 CREATE OR REPLACE TRIGGER loans_updated_at BEFORE UPDATE ON loans FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE OR REPLACE TRIGGER lending_pool_updated_at BEFORE UPDATE ON lending_pool FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE OR REPLACE TRIGGER lender_positions_updated_at BEFORE UPDATE ON lender_positions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- 7. Indexer State
+CREATE TABLE IF NOT EXISTS indexer_state (
+  id TEXT PRIMARY KEY,
+  last_processed_block INTEGER NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Auto-update updated_at for indexer_state
+CREATE OR REPLACE TRIGGER indexer_state_updated_at BEFORE UPDATE ON indexer_state FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Insert initial state
+INSERT INTO indexer_state (id, last_processed_block) VALUES ('main', 22031039) ON CONFLICT DO NOTHING;

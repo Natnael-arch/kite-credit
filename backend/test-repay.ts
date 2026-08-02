@@ -3,7 +3,10 @@ import { ethers } from "ethers";
 const RPC_URL = "https://rpc-testnet.gokite.ai";
 const LENDING_POOL_ADDRESS = "0xC84c34835BEB8A4fb180979E1A4b567A6fC9F9dE";
 const PYUSD_ADDRESS = "0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9";
-const AGENT_PRIVATE_KEY = "32db4730c6d7c7fe0d2bb3ef23602fb28c97b5b6420d1d342a4241316e3a95c8";
+import * as dotenv from "dotenv";
+dotenv.config();
+
+const AGENT_PRIVATE_KEY = process.env.AGENT_PRIVATE_KEY || "";
 
 const PYUSD_ABI = [
   "function balanceOf(address account) view returns (uint256)",

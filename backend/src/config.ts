@@ -46,7 +46,8 @@ class LocalSupabaseQuery {
         lending_pool: [{ id: "main", total_deposited: "1000", total_borrowed: "320", total_repaid: "200", total_interest_earned: "15" }],
         loans: [],
         transactions: [],
-        loan_repayments: []
+        loan_repayments: [],
+        indexer_state: [{ id: "main", last_processed_block: 22031039 }]
       };
       fs.writeFileSync(file, JSON.stringify(defaultDb, null, 2), "utf8");
       return defaultDb;

@@ -17,6 +17,14 @@
       "agent_type": "Autonomous Agent",
       "model_hash": "0x1234567890abcdef",
       "passport_verified": true
+    },
+    {
+      "address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "name": "Autonomous Agent",
+      "score": 641,
+      "identity_status": "Verified",
+      "verification_status": "unknown",
+      "updated_at": "2026-08-02T06:12:04.256Z"
     }
   ],
   "lender_positions": [],
@@ -54,6 +62,126 @@
       "status": "success",
       "repayment_portion": "1.0",
       "agent_portion": 0
+    },
+    {
+      "id": "zr7ra01",
+      "created_at": "2026-08-02T06:04:01.998Z",
+      "tx_hash": "0xb902e2057edddfb9624700f0be4eac2619b39892378033512808ad778a9b3486",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x9999999999999999999999999999999999999999",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "244h2w6",
+      "created_at": "2026-08-02T06:04:25.804Z",
+      "tx_hash": "0x7310a752721c2d7541d16030bc8146d0d7ddab4e9f2c8ede4e810fcbc469ee7e",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x000000000000000000000000000000000000dEaD",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "h3dpmk0",
+      "created_at": "2026-08-02T06:04:26.415Z",
+      "tx_hash": "0x3668f6867608c6ed8c76c5ddd56697f1117e47b46c24e3ebd04e98cd5aea2cbc",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x1111111111111111111111111111111111111111",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "gv36zzx",
+      "created_at": "2026-08-02T06:04:26.980Z",
+      "tx_hash": "0x993f3a662c66ae71bbb1bb5ed96b6c544a8b0d73b13d5c5139896f703d7350c5",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x2222222222222222222222222222222222222222",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "pgtoals",
+      "created_at": "2026-08-02T06:04:35.277Z",
+      "tx_hash": "0x173432a58f4c01cbdc42f6b1d4006136c11d06c35d9dd74e393d64eb58688a76",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x3333333333333333333333333333333333333333",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "abpz9jo",
+      "created_at": "2026-08-02T06:04:36.041Z",
+      "tx_hash": "0x9b4a71e3c86bff1809836c9f021cf060724c2b015f2916baa0fa8593182209e6",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x4444444444444444444444444444444444444444",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "6ppkvpb",
+      "created_at": "2026-08-02T06:04:36.961Z",
+      "tx_hash": "0x75380af5bf07c6c8c25ec615c4c5529597fcc0a3dcd6ab50cfc72fddac030668",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x5555555555555555555555555555555555555555",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "1s1ypor",
+      "created_at": "2026-08-02T06:04:37.683Z",
+      "tx_hash": "0xb14d503a28f95b760c1c9a8192fdcb99cdc5bc5b293cad0a1e778eba0695c35e",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x6666666666666666666666666666666666666666",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "2m8160t",
+      "created_at": "2026-08-02T06:04:45.051Z",
+      "tx_hash": "0x1990ebdfa8558f52c11047fdf35a43e2fe500eb1a07625f376e3eb36ddb39648",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x7777777777777777777777777777777777777777",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "fv1p034",
+      "created_at": "2026-08-02T06:04:45.767Z",
+      "tx_hash": "0x9b8052793396667ee0eac6448678cd86dec84bc47a84b27debe97e1ba2065c0e",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x8888888888888888888888888888888888888888",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "eart9i2",
+      "created_at": "2026-08-02T06:06:42.178Z",
+      "tx_hash": "0xeb3b41ccd44d65cc8cdaedb5f04d6d4d3c14ee4746cc75eadc7950e80dcbde48",
+      "from_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "to_address": "0x9999999999999999999999999999999999999999",
+      "amount": 0.01,
+      "service_name": "PYUSD Transfer",
+      "status": "success"
+    },
+    {
+      "id": "lmqo0mj",
+      "created_at": "2026-08-02T06:12:05.680Z",
+      "tx_hash": "0x4c93807195d8221797be6959d1475e14c429a1a1b8069028cc9fa24057987aba",
+      "from_address": "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
+      "to_address": "0x71DA928CbCF09515112eE792123b1F32A2229458",
+      "amount": 0,
+      "service_name": "On-Chain Activity",
+      "status": "success"
     }
   ],
   "loan_repayments": [
@@ -63,6 +191,13 @@
       "loan_id": "test_loan_123",
       "amount": "1.0",
       "source": "manual"
+    }
+  ],
+  "indexer_state": [
+    {
+      "id": "main",
+      "created_at": "2026-08-02T06:01:40.596Z",
+      "last_processed_block": 22034614
     }
   ]
 }

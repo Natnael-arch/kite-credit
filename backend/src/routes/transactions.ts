@@ -96,16 +96,11 @@ transactionsRouter.post("/", requireAgentSignature("from_address"), async (req, 
         .single();
 
       if (agent) {
-        // Fallback scoring: For every $50 traded, add 10 points. Minimum 10 points. Maximum 850 score.
-        let newScore = agent.score + Math.max(10, Math.floor(amount / 50) * 10);
-        if (newScore > 850) newScore = 850;
-
         await supabase
           .from("agents")
           .update({
             transaction_volume: parseFloat(agent.transaction_volume) + amount,
-            total_payments: agent.total_payments + 1,
-            score: newScore,
+            total_payments: agent.total_payments + 1
           })
           .eq("address", from_address);
       }

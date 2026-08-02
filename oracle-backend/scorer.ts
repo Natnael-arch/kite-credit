@@ -240,141 +240,69 @@ function scoreToGrade(score: number): string {
   return "Poor";
 }
 
-// STOPGAP: Prevent score decay due to RPC block-scan window limitations.
-// Proper fix is reading full history from an indexer or paginated full-range RPC scanning.
-async function applyScoreDecayStopgap(agentAddress: string, newScore: ScoreResult, failCount: number): Promise<ScoreResult> {
+async function getTransactions(agentAddress: string) {
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!sbUrl || !sbKey) return newScore;
-
-  try {
-    const res = await fetch(`${sbUrl}/rest/v1/agents?address=eq.${agentAddress}&select=score`, {
-      headers: { "apikey": sbKey, "Authorization": `Bearer ${sbKey}` }
-    });
-    if (!res.ok) return newScore;
-    
-    const data = await res.json();
-    if (!data || data.length === 0) return newScore;
-    
-    const storedScore = data[0].score;
-    let finalScoreObj = newScore;
-    
-    // Prevent decay if no new negative signals (failCount === 0)
-    if (newScore.score < storedScore && failCount === 0) {
-      console.log(`[STOPGAP] Preventing score decay for ${agentAddress}: keeping ${storedScore} instead of ${newScore.score}`);
-      finalScoreObj = { ...newScore, score: storedScore, grade: scoreToGrade(storedScore) };
+  if (sbUrl?.includes("ydzvybbwjkvglmtegtlw.supabase.co")) {
+    const dbPath = path.resolve(process.cwd(), "../backend/db.json");
+    if (fs.existsSync(dbPath)) {
+      const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+      return db.transactions?.filter((t: any) => t.from_address.toLowerCase() === agentAddress.toLowerCase()) || [];
     }
-    
-    // If different, update Supabase
-    if (finalScoreObj.score !== storedScore) {
-      await fetch(`${sbUrl}/rest/v1/agents?address=eq.${agentAddress}`, {
-        method: "PATCH",
-        headers: { "apikey": sbKey, "Authorization": `Bearer ${sbKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ score: finalScoreObj.score, last_synced_at: new Date().toISOString() })
+    return [];
+  } else {
+    try {
+      const res = await fetch(`${sbUrl}/rest/v1/transactions?from_address=eq.${agentAddress}`, {
+        headers: { "apikey": sbKey!, "Authorization": `Bearer ${sbKey}` }
       });
+      if (res.ok) return await res.json();
+    } catch(e) {
+      console.error("[SCORER] Failed to fetch transactions from Supabase:", e);
     }
-    
-    return finalScoreObj;
-  } catch (err) {
-    console.error("[STOPGAP] Error:", err);
-    return newScore;
+    return [];
   }
 }
 
 /**
- * Legacy block scanner fallback
+ * Legacy scorer using indexer persisted data
  */
 export async function computeScoreLegacy(agentAddress: string): Promise<ScoreResult> {
-  console.log(`\n🔍 Scoring agent: ${agentAddress}`);
+  console.log(`\n🔍 Scoring agent (using indexer DB): ${agentAddress}`);
 
-  // 1. Get total tx count
-  const txCount = await provider.getTransactionCount(agentAddress);
+  // Fetch transactions from DB
+  const txs = await getTransactions(agentAddress);
+  const txCount = txs.length;
+  
   if (txCount === 0) {
-    console.log("  ⚠️ Agent has zero transactions. Base score assigned.");
+    console.log("  ⚠️ Agent has zero transactions in DB. Base score assigned.");
     return emptyScore();
   }
 
-  // 2. Scan last 1000 blocks stepping by 5
-  const latestBlock = await provider.getBlockNumber();
-  const scanDepth = 1000;
-  const step = 5;
-  const startBlock = Math.max(0, latestBlock - scanDepth);
-
   let successCount = 0;
-  let failCount = 0;
-  let firstSeenBlock = latestBlock;
   const uniquePayees = new Set<string>();
+  let firstSeenTime = Infinity;
 
-  console.log(`  Scanning blocks ${latestBlock} to ${startBlock} (step ${step})...`);
-
-  for (let b = latestBlock; b >= startBlock; b -= step) {
-    try {
-      const block = await provider.getBlock(b, true);
-      if (!block) continue;
-
-      for (const tx of block.prefetchedTransactions) {
-        // block.prefixedTransactions is (string | TransactionResponse)[] in ethers v6 if prefetched
-        // If it's a string (hash), we'd need to fetch, but we passed true to getBlock
-        const fullTx = tx as ethers.TransactionResponse;
-
-        if (fullTx.from?.toLowerCase() === agentAddress.toLowerCase()) {
-          try {
-            const receipt = await provider.getTransactionReceipt(fullTx.hash);
-            if (!receipt) continue;
-
-            if (receipt.status === 1) {
-              successCount++;
-              if (fullTx.to) uniquePayees.add(fullTx.to.toLowerCase());
-            } else {
-              failCount++;
-            }
-
-            if (b < firstSeenBlock) firstSeenBlock = b;
-
-          } catch (receiptError) {
-            console.error(`    ❌ Error fetching receipt for ${fullTx.hash}:`, receiptError);
-          }
-        }
-      }
-    } catch (blockError) {
-      console.error(`    ❌ Error fetching block ${b}:`, blockError);
+  for (const tx of txs) {
+    if (tx.status === "success") {
+      successCount++;
+      if (tx.to_address) uniquePayees.add(tx.to_address.toLowerCase());
+    }
+    const txTime = new Date(tx.created_at).getTime();
+    if (txTime < firstSeenTime) {
+      firstSeenTime = txTime;
     }
   }
 
-  // 3. Scan for Repaid events to boost score for debt repayment
-  try {
-    const addressPath = path.resolve(process.cwd(), "deployed-addresses.json");
-    if (fs.existsSync(addressPath)) {
-      const addresses = JSON.parse(fs.readFileSync(addressPath, "utf8"));
-      if (addresses.lendingPool) {
-        const lendingPoolAbi = ["event Repaid(address indexed borrower, uint256 amount)"];
-        const lendingPool = new ethers.Contract(addresses.lendingPool, lendingPoolAbi, provider);
-        
-        console.log(`  Scanning LendingPool for Repaid events...`);
-        const repaidLogs = await lendingPool.queryFilter("Repaid", startBlock, latestBlock);
-        
-        for (const log of repaidLogs) {
-          const [borrower] = (log as any).args;
-          if (borrower.toLowerCase() === agentAddress.toLowerCase()) {
-            successCount += 3; // Heavily weight repayments as successful sessions
-            uniquePayees.add(addresses.lendingPool.toLowerCase());
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.error("    ❌ Error fetching Repaid logs:", e);
-  }
-
-  // 5. Derive metrics
-  const totalProcessed = successCount + failCount;
+  // 3. Score derived metrics
+  const totalProcessed = txCount;
   const paymentRate = totalProcessed > 0 ? Math.round((successCount / totalProcessed) * 100) : 0;
   const diversity = uniquePayees.size;
-  // 2-second blocks -> 86400 / 2 = 43200 blocks per day
-  const agentAgeBlocks = latestBlock - firstSeenBlock;
-  const agentAgeDays = Math.floor((agentAgeBlocks * 2) / 86400);
+  
+  // Account age in days
+  const now = Date.now();
+  const agentAgeDays = firstSeenTime === Infinity ? 0 : Math.floor((now - firstSeenTime) / 86400000);
 
-  // 6. Apply weighted formula (base 300, max 850)
+  // 4. Apply weighted formula (base 300, max 850)
   const repaymentPoints = await scoreRepaymentHistory(agentAddress, provider);
   const tradingPoints   = await scoreTradingPerformance(agentAddress, provider);
   
@@ -406,7 +334,7 @@ export async function computeScoreLegacy(agentAddress: string): Promise<ScoreRes
     }
   };
   
-  return applyScoreDecayStopgap(agentAddress, result, failCount);
+  return result;
 }
 
 function emptyScore(): ScoreResult {
