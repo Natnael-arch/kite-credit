@@ -26,7 +26,7 @@ export function StatCard({ title, value, change, positive, icon: Icon, delay = 0
             {value}
           </motion.p>
           {change && (
-            <p className={`text-xs mt-1 ${positive ? "text-primary" : "text-destructive"}`}>
+            <p className={`text-xs mt-1 ${positive ? "text-green-600 font-medium" : "text-destructive font-medium"}`}>
               {positive ? "↑" : "↓"} {change}
             </p>
           )}

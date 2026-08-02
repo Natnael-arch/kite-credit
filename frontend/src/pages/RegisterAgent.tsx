@@ -149,24 +149,24 @@ export default function RegisterAgent() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
                 {registeredAgentData.verificationStatus === "verified" ? (
-                  <span className="text-green-500">Verified ✓</span>
+                  <span className="text-green-600">Verified ✓</span>
                 ) : registeredAgentData.verificationStatus === "unknown" ? (
-                  <span className="text-amber-500">Status Unknown</span>
+                  <span className="text-amber-600">Status Unknown</span>
                 ) : (
-                  <span className="text-amber-500">Unverified — no Kite Passport</span>
+                  <span className="text-amber-600">Unverified — no Kite Passport</span>
                 )}
               </div>
             </div>
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => window.location.href = '/borrow'}
-                className="flex-1 py-3 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:shadow-lg hover:shadow-primary/20 transition-all"
+                className="flex-1 py-3 rounded-full bg-[#05060b] text-white font-medium text-sm transition-all hover:bg-black/80"
               >
                 Go to Borrow
               </button>
               <button
                 onClick={() => window.location.href = '/'}
-                className="flex-1 py-3 rounded-lg bg-muted text-foreground font-medium text-sm hover:bg-muted/80 transition-colors"
+                className="flex-1 py-3 rounded-full border border-border bg-card text-foreground font-medium text-sm hover:bg-muted transition-colors"
               >
                 Back to Home
               </button>
@@ -180,7 +180,7 @@ export default function RegisterAgent() {
   return (
     <div className="space-y-8">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-3xl font-bold gradient-text">Register AI Agent</h1>
+        <h1 className="text-3xl font-bold text-black">Register AI Agent</h1>
         <p className="text-muted-foreground mt-1">Create an on-chain identity for your AI agent</p>
       </motion.div>
 
@@ -279,7 +279,7 @@ export default function RegisterAgent() {
             <button
               onClick={handleRegister}
               disabled={loading || !isConnected || !agentName.trim()}
-              className="w-full py-3 rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold text-sm transition-all hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-full bg-[#05060b] text-white font-semibold text-sm transition-all hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -316,7 +316,7 @@ export default function RegisterAgent() {
 
           {!isConnected && (
             <GlassCard delay={0.5}>
-              <div className="flex items-center gap-3" style={{ color: "hsl(45, 93%, 47%)" }}>
+              <div className="flex items-center gap-3" style={{ color: "#d97706" }}>
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 <p className="text-sm">Connect your wallet to register an agent.</p>
               </div>

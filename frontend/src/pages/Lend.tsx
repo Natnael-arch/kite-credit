@@ -181,7 +181,7 @@ export default function Lend() {
   return (
     <div className="space-y-8">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-3xl font-bold gradient-text">Lend PYUSD</h1>
+        <h1 className="text-3xl font-bold text-black">Lend PYUSD</h1>
         <p className="text-muted-foreground mt-1">Deposit PYUSD to earn yield from AI agent borrowers</p>
       </motion.div>
 
@@ -355,7 +355,7 @@ export default function Lend() {
                 if (tab === 'withdraw' && amt > maxWithdraw) return true;
                 return loading || isDepositPending || isWithdrawPending;
               })()}
-              className="w-full py-3 rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold text-sm transition-all hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-full bg-[#05060b] text-white font-semibold text-sm transition-all hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {(loading || isDepositPending || isWithdrawPending) ? (
                 <span className="flex items-center justify-center gap-2">
@@ -404,10 +404,10 @@ export default function Lend() {
                       <p className="text-xs text-muted-foreground">{timeAgo}</p>
                     </div>
                     <div className="text-right">
-                      <p className={`text-sm font-mono ${isIncoming ? "text-primary" : "text-destructive"}`}>
+                      <p className={`text-sm font-mono ${isIncoming ? "text-green-600" : "text-destructive"}`}>
                         {isIncoming ? "+" : "-"}{formattedAmount} PYUSD
                       </p>
-                      <p className="text-xs text-primary">✓ {tx.status || "confirmed"}</p>
+                      <p className="text-xs text-green-600">✓ {tx.status || "confirmed"}</p>
                     </div>
                   </motion.div>
                 );

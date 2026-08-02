@@ -120,6 +120,12 @@ export const api = {
       body: JSON.stringify(data),
     }, signAuthMessage),
 
+  recordRepayment: (data: { borrower_address: string; amount: number; txHash: string }, signAuthMessage: SignAuthMessage) =>
+    authenticatedRequest<{ success: boolean; message: string }>("/api/loans/repay", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }, signAuthMessage),
+
   getLoans: (address: string) =>
     request<Array<Record<string, unknown>>>(`/api/loans/${encodeURIComponent(address)}`),
 

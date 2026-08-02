@@ -37,7 +37,7 @@ export function WalletButton() {
       <button
         onClick={handleConnect}
         disabled={isConnecting}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground font-medium text-sm transition-all hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50"
+        className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#05060b] text-white font-medium text-sm transition-all hover:bg-black/80 disabled:opacity-50"
       >
         <Wallet className="w-4 h-4" />
         {isConnecting ? 'Connecting...' : 'Connect Wallet'}
@@ -49,9 +49,9 @@ export function WalletButton() {
     <div className="relative">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg glass-card-hover text-sm font-mono"
+        className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card hover:bg-muted text-sm font-mono transition-colors"
       >
-        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+        <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse" />
         {truncated}
       </button>
 
@@ -61,7 +61,7 @@ export function WalletButton() {
             initial={{ opacity: 0, y: 4, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.95 }}
-            className="absolute right-0 top-12 w-52 glass-card p-2 z-50"
+            className="absolute right-0 top-12 w-52 bg-card border border-border rounded-[12px] p-2 z-50 shadow-sm"
           >
             <button
               onClick={copyAddress}

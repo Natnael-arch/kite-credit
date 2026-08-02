@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Home, Landmark, CreditCard, UserPlus, Wallet, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { WalletButton } from "./WalletButton";
-import { ParticleBackground } from "./ParticleBackground";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: Home },
@@ -17,16 +16,15 @@ export function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      <ParticleBackground />
+    <div className="min-h-screen relative overflow-hidden flex flex-col">
       {/* Top Nav */}
-      <header className="fixed top-0 left-0 right-0 z-50 glass-card border-t-0 rounded-none border-x-0">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">K</span>
             </div>
-            <span className="font-bold text-lg gradient-text hidden sm:inline">KiteCredit</span>
+            <span className="font-bold text-lg text-black hidden sm:inline">KiteCredit</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -75,7 +73,7 @@ export function Layout() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed top-16 left-0 right-0 z-40 glass-card rounded-none border-x-0 p-4 md:hidden"
+            className="fixed top-16 left-0 right-0 z-40 bg-card border-b border-border p-4 md:hidden"
           >
             {navItems.map((item) => (
               <Link
@@ -112,16 +110,16 @@ export function Layout() {
       </main>
       
       {/* Footer */}
-      <footer className="border-t border-border/50 bg-background/50 backdrop-blur-sm relative z-10 py-6 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+      <footer className="bg-[#05060b] text-white/70 relative z-10 py-6 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
           <div>
             KiteCredit Protocol - Testnet
           </div>
           <div className="flex items-center gap-6">
-            <a href="https://faucet.gokite.ai" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
+            <a href="https://faucet.gokite.ai" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-1">
               Get testnet KITE
             </a>
-            <a href="http://testnet.kitescan.ai/token/0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9?tab=write_contract" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
+            <a href="http://testnet.kitescan.ai/token/0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9?tab=write_contract" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-1">
               Get testnet PYUSD
             </a>
           </div>

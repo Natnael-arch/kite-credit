@@ -41,7 +41,7 @@ export default function Borrow() {
     registered: true
   } : null;
 
-  const borrowedAmount = (!isPositionLoading && !isPositionError && borrowerPosition) ? Number(borrowerPosition[0]) / (10**18) : 0;
+
 
   // Calculate score-based loan tiers
   const creditScore = agentData?.score || 0;
@@ -90,6 +90,15 @@ export default function Borrow() {
       .finally(() => setIsAgentLoading(false));
   }, [account]);
 
+  // Fetch active loan fallback from backend
+  const [activeBackendLoan, setActiveBackendLoan] = useState<any>(null);
+  useEffect(() => {
+    if (!account) return;
+    api.getActiveLoan(account)
+      .then(loan => setActiveBackendLoan(loan))
+      .catch(() => setActiveBackendLoan(null));
+  }, [account]);
+
   // Fetch loan history
   useEffect(() => {
     if (!account) return;
@@ -100,6 +109,11 @@ export default function Borrow() {
       .finally(() => setIsLoadingHistory(false));
   }, [account]);
   
+  // Use backend fallback if RPC is down
+  const onChainBorrowed = (!isPositionLoading && !isPositionError && borrowerPosition) ? Number(borrowerPosition[0]) / (10**18) : 0;
+  const backendBorrowed = activeBackendLoan ? parseFloat(activeBackendLoan.amount) - parseFloat(activeBackendLoan.total_repaid || 0) : 0;
+  const borrowedAmount = isPositionError && backendBorrowed > 0 ? backendBorrowed : onChainBorrowed;
+
   const maxBorrowable = (loanTerms?.maxLoan || 0) - borrowedAmount;
   const canBorrow = loanTerms?.eligible === true && maxBorrowable > 0;
   
@@ -166,13 +180,10 @@ export default function Borrow() {
         toast.success(`On-chain repayment successful! Amount: ${repayAmount} PYUSD`);
         
         try {
-          await api.fetchWithAuth("/loans/repay", {
-            method: "POST",
-            body: JSON.stringify({
-              borrower_address: account,
-              amount: parseFloat(repayAmount),
-              txHash
-            })
+          await api.recordRepayment({
+            borrower_address: account,
+            amount: parseFloat(repayAmount),
+            txHash
           }, signAuthMessage);
         } catch (backendError) {
           console.error("Failed to record repayment on backend", backendError);
@@ -234,7 +245,7 @@ export default function Borrow() {
   if (!account) {
     return (
       <div className="space-y-8">
-        <h1 className="text-3xl font-bold gradient-text">Borrow</h1>
+        <h1 className="text-3xl font-bold text-black">Borrow</h1>
         <GlassCard className="text-center py-12">
           <Wallet className="w-12 h-12 text-primary mx-auto mb-4" />
           <h3 className="text-xl font-semibold mb-2">Connect Wallet</h3>
@@ -256,7 +267,7 @@ export default function Borrow() {
     return (
       <div className="space-y-8">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <h1 className="text-3xl font-bold gradient-text">Borrow</h1>
+          <h1 className="text-3xl font-bold text-black">Borrow</h1>
           <p className="text-muted-foreground mt-1">AI agents can borrow credit based on reputation score</p>
         </motion.div>
         <GlassCard className="text-center py-12">
@@ -278,7 +289,7 @@ export default function Borrow() {
     return (
       <div className="space-y-8">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <h1 className="text-3xl font-bold gradient-text">Borrow</h1>
+          <h1 className="text-3xl font-bold text-black">Borrow</h1>
           <p className="text-muted-foreground mt-1">AI agents can borrow credit based on reputation score</p>
         </motion.div>
         <GlassCard className="text-center py-12">
@@ -299,7 +310,7 @@ export default function Borrow() {
   return (
     <div className="space-y-8">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-3xl font-bold gradient-text">Borrow</h1>
+        <h1 className="text-3xl font-bold text-black">Borrow</h1>
         <p className="text-muted-foreground mt-1">AI agents can borrow credit based on reputation score</p>
       </motion.div>
 
@@ -399,7 +410,7 @@ export default function Borrow() {
               <button
                 onClick={handleAttest}
                 disabled={isAttesting}
-                className="w-full py-2.5 rounded-lg bg-secondary text-secondary-foreground font-medium text-sm transition-all hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-full border border-border bg-card text-foreground font-medium text-sm transition-all hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isAttesting ? (
                   <>
@@ -546,7 +557,7 @@ export default function Borrow() {
               <button
                 onClick={handleRepay}
                 disabled={isRepaying || !repayAmount || parseFloat(repayAmount) <= 0}
-                className="w-full py-3 rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold text-sm transition-all hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-full bg-[#05060b] text-white font-semibold text-sm transition-all hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isRepaying ? (
                   <>
@@ -624,7 +635,7 @@ export default function Borrow() {
               <button
                 onClick={handleBorrow}
                 disabled={isPending || !borrowAmount || parseFloat(borrowAmount) <= 0}
-                className="w-full py-3 rounded-lg bg-gradient-to-r from-accent to-primary text-primary-foreground font-semibold text-sm transition-all hover:shadow-lg hover:shadow-accent/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-full bg-[#05060b] text-white font-semibold text-sm transition-all hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isPending ? (
                   <>

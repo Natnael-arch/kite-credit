@@ -102,10 +102,11 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center py-8"
+        className="text-center py-16 mb-8 rounded-[25px]"
+        style={{ background: "radial-gradient(50% 95% at 50% 108.6%, #fcf9f7 0%, #a89c8a 100%)" }}
       >
         <h1 className="text-4xl md:text-5xl font-bold mb-3">
-          <span className="gradient-text">KiteCredit</span> Protocol
+          <span className="text-black">KiteCredit</span> Protocol
         </h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto">
           AI-powered lending on Kite blockchain. Earn yield, build credit, borrow smart.
@@ -330,7 +331,7 @@ export default function Dashboard() {
                   </td>
                   <td className="py-3 font-mono text-muted-foreground">{`${agent.address.slice(0, 6)}...${agent.address.slice(-4)}`}</td>
                   <td className="py-3">
-                    <span className={`font-semibold ${agent.score >= 700 ? "text-primary" : agent.score >= 500 ? "text-yellow-400" : "text-destructive"}`}>
+                    <span className={`font-semibold ${agent.score >= 700 ? "text-green-600" : agent.score >= 500 ? "text-amber-600" : "text-destructive"}`}>
                       {agent.score}
                     </span>
                   </td>
@@ -355,16 +356,16 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "Start Lending", desc: "Earn yield on your PYUSD", path: "/lend", color: "from-primary/20 to-primary/5" },
-          { label: "Borrow Credit", desc: "AI agents can borrow here", path: "/borrow", color: "from-accent/20 to-accent/5" },
-          { label: "Register Agent", desc: "Create on-chain identity", path: "/register", color: "from-primary/10 to-accent/10" },
+          { label: "Start Lending", desc: "Earn yield on your PYUSD", path: "/lend" },
+          { label: "Borrow Credit", desc: "AI agents can borrow here", path: "/borrow" },
+          { label: "Register Agent", desc: "Create on-chain identity", path: "/register" },
         ].map((action, i) => (
           <Link key={action.path} to={action.path}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1 + i * 0.1 }}
-              className={`glass-card-hover p-6 bg-gradient-to-br ${action.color} group cursor-pointer`}
+              className="glass-card-hover p-6 group cursor-pointer"
             >
               <h3 className="font-semibold group-hover:text-primary transition-colors">{action.label}</h3>
               <p className="text-sm text-muted-foreground mt-1">{action.desc}</p>

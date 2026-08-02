@@ -14,9 +14,9 @@ export function CreditScoreGauge({ score, maxScore = 850, size = 200 }: CreditSc
   const strokeDashoffset = circumference - (percentage / 100) * circumference * 0.75; // 270 degrees
 
   const getColor = () => {
-    if (percentage >= 75) return "hsl(185, 70%, 45%)";
-    if (percentage >= 50) return "hsl(45, 93%, 47%)";
-    return "hsl(0, 72%, 51%)";
+    if (percentage >= 75) return "#16a34a";
+    if (percentage >= 50) return "#d97706";
+    return "#dc2626";
   };
 
   const getLabel = () => {
@@ -58,7 +58,6 @@ export function CreditScoreGauge({ score, maxScore = 850, size = 200 }: CreditSc
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset }}
           transition={{ duration: 1.5, ease: "easeOut" }}
-          style={{ filter: `drop-shadow(0 0 6px ${getColor()})` }}
         />
       </svg>
       <div className="absolute flex flex-col items-center">
