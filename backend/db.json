@@ -4,10 +4,11 @@
       "id": "xcjz80h",
       "created_at": "2026-05-17T12:05:42.017Z",
       "address": "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
-      "score": 629,
+      "score": 750,
       "name": "Autonomous Agent",
       "identity_status": "Verified",
-      "updated_at": "2026-05-17T12:45:46.659Z"
+      "updated_at": "2026-08-02T06:52:22.341Z",
+      "verification_status": "unknown"
     },
     {
       "id": "nkgnsqg",
@@ -24,7 +25,17 @@
       "score": 641,
       "identity_status": "Verified",
       "verification_status": "unknown",
-      "updated_at": "2026-08-02T06:12:04.256Z"
+      "updated_at": "2026-08-02T06:41:10.064Z"
+    },
+    {
+      "id": "ounj21z",
+      "created_at": "2026-08-02T06:40:25.047Z",
+      "address": "0xA4F3018A0eF2021c191795Dd4eEcC5D744E0D8Ee",
+      "score": 495,
+      "name": "Autonomous Agent",
+      "identity_status": "Verified",
+      "verification_status": "unknown",
+      "updated_at": "2026-08-02T06:41:10.063Z"
     }
   ],
   "lender_positions": [],
@@ -32,7 +43,7 @@
     {
       "id": "main",
       "total_deposited": 0,
-      "total_borrowed": "320",
+      "total_borrowed": 350,
       "total_repaid": "200",
       "total_interest_earned": "15"
     }
@@ -49,6 +60,72 @@
       "interest_rate": 5,
       "repayment_split": 30,
       "created_at": "2026-07-31T00:00:00Z"
+    },
+    {
+      "id": "f1og0fr",
+      "created_at": "2026-08-02T06:40:25.420Z",
+      "borrower_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "amount": 5,
+      "interest_rate": 5,
+      "total_owed": 5.25,
+      "total_repaid": 0,
+      "status": "active",
+      "tx_hash": "0xe3304dbb38be8ac474afd1169390540e673629fbdee3634a73c1aaff4881b0cf"
+    },
+    {
+      "id": "xsp8x3z",
+      "created_at": "2026-08-02T06:40:25.424Z",
+      "borrower_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "amount": 5,
+      "interest_rate": 5,
+      "total_owed": 5.25,
+      "total_repaid": 0,
+      "status": "active",
+      "tx_hash": "0xd5b4fc29d6c8aaacbf6e74ec16641f02b9f36f14b4476ae0df1f6601cf70f9fb"
+    },
+    {
+      "id": "ec0iveu",
+      "created_at": "2026-08-02T06:40:25.426Z",
+      "borrower_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "amount": 5,
+      "interest_rate": 5,
+      "total_owed": 5.25,
+      "total_repaid": 0,
+      "status": "active",
+      "tx_hash": "0x3b026ea856e8d942546d629a2aeea9742fb22b710b95968e9d8a77288c90b1f3"
+    },
+    {
+      "id": "ipq870u",
+      "created_at": "2026-08-02T06:41:10.939Z",
+      "borrower_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "amount": 5,
+      "interest_rate": 5,
+      "total_owed": 5.25,
+      "total_repaid": 0,
+      "status": "active",
+      "tx_hash": "0xe3304dbb38be8ac474afd1169390540e673629fbdee3634a73c1aaff4881b0cf"
+    },
+    {
+      "id": "is7d400",
+      "created_at": "2026-08-02T06:41:10.946Z",
+      "borrower_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "amount": 5,
+      "interest_rate": 5,
+      "total_owed": 5.25,
+      "total_repaid": 0,
+      "status": "active",
+      "tx_hash": "0xd5b4fc29d6c8aaacbf6e74ec16641f02b9f36f14b4476ae0df1f6601cf70f9fb"
+    },
+    {
+      "id": "s19y8se",
+      "created_at": "2026-08-02T06:41:10.948Z",
+      "borrower_address": "0x392Cf972263701695Cb21745D43541272DEC3ceA",
+      "amount": 5,
+      "interest_rate": 5,
+      "total_owed": 5.25,
+      "total_repaid": 0,
+      "status": "active",
+      "tx_hash": "0x3b026ea856e8d942546d629a2aeea9742fb22b710b95968e9d8a77288c90b1f3"
     }
   ],
   "transactions": [
@@ -182,6 +259,66 @@
       "amount": 0,
       "service_name": "On-Chain Activity",
       "status": "success"
+    },
+    {
+      "id": "znh6krc",
+      "created_at": "2026-08-02T06:40:26.756Z",
+      "tx_hash": "0xeda94b8cf9a368bdd8f99e3c4640c694aaad555b1d9636fedf09aa6e9a18fc54",
+      "from_address": "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
+      "to_address": "Contract Creation",
+      "amount": 0,
+      "service_name": "On-Chain Activity",
+      "status": "success"
+    },
+    {
+      "id": "4mumu26",
+      "created_at": "2026-08-02T06:40:27.368Z",
+      "tx_hash": "0x75a4dc0f160befa9cc177247dedad21b53aba79158858db7c5ca20e26fbdfd76",
+      "from_address": "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
+      "to_address": "Contract Creation",
+      "amount": 0,
+      "service_name": "On-Chain Activity",
+      "status": "success"
+    },
+    {
+      "id": "egsh01w",
+      "created_at": "2026-08-02T06:40:28.085Z",
+      "tx_hash": "0x9588f7e05081e02205a510e89f0d50237a5b647b6c0276da806d7f66cdf64f00",
+      "from_address": "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
+      "to_address": "0xC84c34835BEB8A4fb180979E1A4b567A6fC9F9dE",
+      "amount": 0,
+      "service_name": "On-Chain Activity",
+      "status": "success"
+    },
+    {
+      "id": "bzaxv3u",
+      "created_at": "2026-08-02T06:40:28.676Z",
+      "tx_hash": "0xa02c13faff890189df22c4f0da1744199dfd0f462ad06bdff4d4c1c8d76b4ea7",
+      "from_address": "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
+      "to_address": "0xC84c34835BEB8A4fb180979E1A4b567A6fC9F9dE",
+      "amount": 0,
+      "service_name": "On-Chain Activity",
+      "status": "success"
+    },
+    {
+      "id": "qsfamyh",
+      "created_at": "2026-08-02T06:40:29.677Z",
+      "tx_hash": "0x54ec87081588565875503a5b0eecb34ec5a33a8f8e465eef5ad28a01330672f2",
+      "from_address": "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
+      "to_address": "0xd414b8c0c4FF3F3a1befc2a13293EE4BCF39F337",
+      "amount": 0,
+      "service_name": "On-Chain Activity",
+      "status": "success"
+    },
+    {
+      "id": "m9720tx",
+      "created_at": "2026-08-02T06:40:30.957Z",
+      "tx_hash": "0xffa4f1784b5f40bd4251d8c0d2636f7172573033043679a2f7fa2697595b8d98",
+      "from_address": "0xC201B98d96d09f2B15Cb7fe8E8c40Da6D664B15c",
+      "to_address": "0x71DA928CbCF09515112eE792123b1F32A2229458",
+      "amount": 0,
+      "service_name": "On-Chain Activity",
+      "status": "success"
     }
   ],
   "loan_repayments": [
@@ -196,8 +333,8 @@
   "indexer_state": [
     {
       "id": "main",
-      "created_at": "2026-08-02T06:01:40.596Z",
-      "last_processed_block": 22034614
+      "created_at": "2026-08-02T06:40:23.515Z",
+      "last_processed_block": 22034632
     }
   ]
 }

@@ -36,7 +36,8 @@ export async function startIndexer() {
   if (stateData && stateData.last_processed_block) {
     lastProcessedBlock = stateData.last_processed_block;
   } else {
-    lastProcessedBlock = await provider.getBlockNumber();
+    lastProcessedBlock = 22030829; // AgentScoreAttestation deployment block
+    console.log(`⚠️ No checkpoint found. Defaulting to deployment block ${lastProcessedBlock}...`);
     await supabase.from("indexer_state").upsert({ id: "main", last_processed_block: lastProcessedBlock }, { onConflict: "id" });
   }
 
@@ -52,11 +53,15 @@ export async function startIndexer() {
       const safeLatestBlock = currentBlock > 0 ? currentBlock - 1 : currentBlock;
       if (safeLatestBlock <= lastProcessedBlock) {
         consecutiveFailures = 0;
+        console.log(`[Indexer] Caught up to block ${lastProcessedBlock}. Sleeping for ${delay}ms...`);
         return;
       }
 
       const fromBlock = lastProcessedBlock + 1;
-      const toBlock = safeLatestBlock;
+      const toBlock = Math.min(safeLatestBlock, fromBlock + 99); // process in chunks of 100 blocks
+      if (toBlock < safeLatestBlock) {
+        delay = 100; // fast-poll to catch up quickly
+      }
 
       // 1. Scan for ScoreAttested
       const scoreLogs = await agentScoreAttestation.queryFilter("ScoreAttested", fromBlock, toBlock);
