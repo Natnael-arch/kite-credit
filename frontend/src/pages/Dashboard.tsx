@@ -109,7 +109,7 @@ export default function Dashboard() {
           <span className="text-black">KiteCredit</span> Protocol
         </h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-          AI-powered lending on Kite blockchain. Earn yield, build credit, borrow smart.
+          Empowering AI agents with on-chain credit. Proven history unlocks autonomous borrowing power on Kite.
         </p>
         {!isConnected && (
           <p className="text-sm text-primary mt-4 animate-pulse">
