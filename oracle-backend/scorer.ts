@@ -185,52 +185,7 @@ async function scoreRepaymentHistory(
   }
 }
 
-async function scoreTradingPerformance(
-  agentAddress: string,
-  provider: ethers.JsonRpcProvider
-): Promise<number> {
-  try {
-    const TRADE_VAULT = "0x30980D5Efd3489B65D3dc0E65b61C01B357a8DBa";
-    const abi = [
-      "event PositionOpened(uint256 indexed id, address indexed agent, string asset, uint8 side, uint256 entryPrice, uint256 size)",
-      "event PositionClosed(uint256 indexed id, uint8 status, uint256 exitPrice, int256 pnl)"
-    ];
 
-    const vault = new ethers.Contract(TRADE_VAULT, abi, provider);
-    const latestBlock = await provider.getBlockNumber();
-    const fromBlock   = Math.max(0, latestBlock - 50000);
-
-    // Get all positions opened by this agent
-    const openFilter = vault.filters.PositionOpened(null, agentAddress);
-    const openEvents = await vault.queryFilter(openFilter, fromBlock);
-
-    if (openEvents.length === 0) return 0;
-
-    // Get all closed positions
-    const closeFilter = vault.filters.PositionClosed();
-    const closeEvents = await vault.queryFilter(closeFilter, fromBlock);
-
-    // Match closes to this agent's opens
-    const agentIds = new Set(openEvents.map(e => (e as any).args.id.toString()));
-    const closes   = closeEvents.filter(e =>
-      agentIds.has((e as any).args.id.toString())
-    );
-
-    const profitable = closes.filter(e =>
-      (e as any).args.status === 2n // CLOSED_PROFIT = 2 in our contract
-    ).length;
-
-    let points = 0;
-    points += Math.min(openEvents.length, 5) * 5;  // up to 25pts for activity
-    points += Math.min(profitable, 3) * 10;         // up to 30pts for profit
-
-    return Math.min(55, points); // max 55 pts (10% weight)
-
-  } catch (err: any) {
-    console.warn("[SCORER] Trading performance unavailable:", err.message);
-    return 0;
-  }
-}
 
 function scoreToGrade(score: number): string {
   const percentage = (score / 850) * 100;
@@ -247,12 +202,15 @@ async function getTransactions(agentAddress: string) {
     const dbPath = path.resolve(process.cwd(), "../backend/db.json");
     if (fs.existsSync(dbPath)) {
       const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
-      return db.transactions?.filter((t: any) => t.from_address.toLowerCase() === agentAddress.toLowerCase()) || [];
+      return db.transactions?.filter((t: any) => 
+        t.from_address?.toLowerCase() === agentAddress.toLowerCase() || 
+        t.to_address?.toLowerCase() === agentAddress.toLowerCase()
+      ) || [];
     }
     return [];
   } else {
     try {
-      const res = await fetch(`${sbUrl}/rest/v1/transactions?from_address=eq.${agentAddress}`, {
+      const res = await fetch(`${sbUrl}/rest/v1/transactions?or=(from_address.eq.${agentAddress},to_address.eq.${agentAddress})`, {
         headers: { "apikey": sbKey!, "Authorization": `Bearer ${sbKey}` }
       });
       if (res.ok) return await res.json();
@@ -261,6 +219,11 @@ async function getTransactions(agentAddress: string) {
     }
     return [];
   }
+}
+
+async function computeSimulateBonus(agentAddress: string, txs: any[]): Promise<number> {
+  const plainTransfers = txs.filter((tx: any) => tx.service_name === "PYUSD Transfer" && tx.status === "success");
+  return Math.min(plainTransfers.length, 10) * 25;
 }
 
 /**
@@ -278,59 +241,72 @@ export async function computeScoreLegacy(agentAddress: string): Promise<ScoreRes
     return emptyScore();
   }
 
-  let successCount = 0;
-  const uniquePayees = new Set<string>();
-  let firstSeenTime = Infinity;
+  // 1. Repayment history (40%, max 340 pts)
+  const rawRepaymentPoints = await scoreRepaymentHistory(agentAddress, provider);
+  const repaymentPoints = rawRepaymentPoints * (340 / 192); // Rescale from max 192 to max 340
 
+  // Filter for Payment Reliability and Counterparty Diversity
+  const x402Txs = txs.filter((tx: any) => 
+    tx.service_name === "x402 On-Chain Split" && 
+    tx.to_address?.toLowerCase() === agentAddress.toLowerCase()
+  );
+
+  // 2. Payment reliability (35%, max 297.5 pts)
+  const successfulX402 = x402Txs.filter((tx: any) => tx.status === "success");
+  const successRate = x402Txs.length > 0 ? (successfulX402.length / x402Txs.length) : 0;
+  const totalVolume = successfulX402.reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+  
+  const p_reliability_success = successRate * (297.5 * 0.5);
+  // Log scale volume: e.g. log10(volume + 1) * 50, capped at 148.75
+  const p_reliability_volume = Math.min(Math.log10(totalVolume + 1) * 50, 297.5 * 0.5);
+  const p_reliability = p_reliability_success + p_reliability_volume;
+
+  // 3. Counterparty diversity (15%, max 127.5 pts)
+  const uniquePayers = new Set<string>();
+  successfulX402.forEach((tx: any) => {
+    if (tx.from_address) uniquePayers.add(tx.from_address.toLowerCase());
+  });
+  const diversity = uniquePayers.size;
+  const p_diversity = Math.min(diversity, 10) * 12.75;
+
+  // 4. Account age / tenure (10%, max 85 pts)
+  let firstSeenTime = Infinity;
   for (const tx of txs) {
-    if (tx.status === "success") {
-      successCount++;
-      if (tx.to_address) uniquePayees.add(tx.to_address.toLowerCase());
-    }
     const txTime = new Date(tx.created_at).getTime();
     if (txTime < firstSeenTime) {
       firstSeenTime = txTime;
     }
   }
-
-  // 3. Score derived metrics
-  const totalProcessed = txCount;
-  const paymentRate = totalProcessed > 0 ? Math.round((successCount / totalProcessed) * 100) : 0;
-  const diversity = uniquePayees.size;
-  
-  // Account age in days
   const now = Date.now();
   const agentAgeDays = firstSeenTime === Infinity ? 0 : Math.floor((now - firstSeenTime) / 86400000);
+  const p_age = Math.min(agentAgeDays, 30) * (85 / 30);
 
-  // 4. Apply weighted formula (base 300, max 850)
-  const repaymentPoints = await scoreRepaymentHistory(agentAddress, provider);
-  const tradingPoints   = await scoreTradingPerformance(agentAddress, provider);
-  
-  // Rescale weights to make room for repayment (35% = 192.5 max points)
-  const p_paymentRate = paymentRate * 1.375;               // 25% weight, max 137.5
-  const p_txVolume = Math.min(txCount, 50) * 1.1;          // 10% weight, max 55
-  const p_age = Math.min(agentAgeDays, 30) * 1.833;        // 10% weight, max 55
-  const p_diversity = Math.min(diversity, 10) * 8.25;      // 15% weight, max 82.5
-  const p_sessions = Math.min(successCount, 10) * 2.75;    // 5% weight, max 27.5
+  let totalPoints = repaymentPoints + p_reliability + p_diversity + p_age;
 
-  const totalPoints = repaymentPoints + p_paymentRate + p_txVolume + p_age + p_diversity + p_sessions + tradingPoints;
+  // ⚠️ TESTING ONLY — remove this entire block and the ALLOW_SIMULATE_SCORING env var
+  // once real external testers no longer need a shortcut to reach eligibility.
+  // Tracked removal trigger: after 3 real external testers complete the full loop.
+  if (process.env.ALLOW_SIMULATE_SCORING === "true") {
+    totalPoints += await computeSimulateBonus(agentAddress, txs);
+  }
+
   const score = Math.min(850, Math.max(300, Math.round(300 + totalPoints)));
 
   const result = {
     score,
     grade: scoreToGrade(score),
-    paymentRate,
+    paymentRate: Math.round(successRate * 100),
     diversity,
     txCount,
     agentAgeDays,
     breakdown: {
-      paymentRate: Math.round(p_paymentRate),
-      txVolume: Math.round(p_txVolume),
+      paymentRate: Math.round(p_reliability),
+      txVolume: Math.round(p_reliability_volume),
       age: Math.round(p_age),
       diversity: Math.round(p_diversity),
-      sessions: Math.round(p_sessions),
+      sessions: 0,
       repayment: Math.round(repaymentPoints),
-      trading: Math.round(tradingPoints)
+      trading: 0
     }
   };
   
@@ -378,7 +354,6 @@ export async function computeScore(
 
   // SUPPLEMENTARY: on-chain data Passport doesn't have
   const repaymentPoints = await scoreRepaymentHistory(agentAddress, provider);
-  const tradingPoints   = await scoreTradingPerformance(agentAddress, provider);
 
   // COMPUTE
   const paymentPoints   = scorePaymentSuccess(passportHistory);
@@ -389,11 +364,10 @@ export async function computeScore(
 
   const finalScore = Math.min(850, Math.max(300,
     300 +
-    repaymentPoints   +  // 35% — loan repayment (from chain)
+    repaymentPoints   +  // 40% — loan repayment (from chain) - adjusted scale
     paymentPoints     +  // 25% — payment success (from Passport)
     diversityPoints   +  // 15% — service diversity (from Passport)
     agePoints         +  // 10% — account age (from Passport)
-    tradingPoints     +  // 10% — trading performance (from chain)
     disciplinePoints     //  5% — session discipline (from Passport)
   ));
 
@@ -416,7 +390,7 @@ export async function computeScore(
       payment:     Math.round(paymentPoints),
       diversity:   Math.round(diversityPoints),
       age:         Math.round(agePoints),
-      trading:     Math.round(tradingPoints),
+      trading:     0,
       discipline:  Math.round(disciplinePoints)
     },
     sources: {
