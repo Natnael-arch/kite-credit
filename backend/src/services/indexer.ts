@@ -13,7 +13,7 @@ const X402ProcessorABI: any[] = JSON.parse(fs.readFileSync(path.join(abisDir, "X
 const LendingPoolABI: any[] = JSON.parse(fs.readFileSync(path.join(abisDir, "LendingPool.json"), "utf8"));
 const addressesPath = path.join(abisDir, "deployed-addresses.json");
 
-const PYUSD_ADDRESS = "0x4200000000000000000000000000000000000006";
+const PYUSD_ADDRESS = "0x8E04D099b1a8Dd20E6caD4b2Ab2B405B98242ec9";
 const erc20Iface = new ethers.Interface(["function transfer(address to, uint256 amount)"]);
 
 export async function startIndexer() {
@@ -50,7 +50,7 @@ export async function startIndexer() {
 
     try {
       const currentBlock = await provider.getBlockNumber();
-      const safeLatestBlock = currentBlock > 0 ? currentBlock - 1 : currentBlock;
+      const safeLatestBlock = currentBlock;
       if (safeLatestBlock <= lastProcessedBlock) {
         consecutiveFailures = 0;
         console.log(`[Indexer] Caught up to block ${lastProcessedBlock}. Sleeping for ${delay}ms...`);
@@ -171,6 +171,7 @@ export async function startIndexer() {
             let serviceName = "On-Chain Activity";
 
             // Decode PYUSD transfers
+            console.log(`[INDEXER] Checking tx ${fullTx.hash}: fullTx.to=${fullTx.to}, PYUSD_ADDRESS=${PYUSD_ADDRESS}`);
             if (fullTx.to?.toLowerCase() === PYUSD_ADDRESS.toLowerCase() && fullTx.data) {
               try {
                 const parsed = erc20Iface.parseTransaction({ data: fullTx.data });
@@ -179,7 +180,9 @@ export async function startIndexer() {
                   amount = parseFloat(ethers.formatUnits(parsed.args[1], 18));
                   serviceName = "PYUSD Transfer";
                 }
-              } catch(e) {}
+              } catch(e) {
+                console.error(`[INDEXER] Failed to decode potential PYUSD transfer in tx ${fullTx.hash}:`, e);
+              }
             }
 
             await supabase.from("transactions").insert({
