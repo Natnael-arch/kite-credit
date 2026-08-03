@@ -112,8 +112,8 @@ export async function startIndexer() {
         const { data: existingTx } = await supabase.from("transactions").select("id").eq("tx_hash", log.transactionHash).single();
         if (!existingTx) {
           await supabase.from("transactions").insert({
-            from_address: from,
-            to_address: to,
+            from_address: from.toLowerCase(),
+            to_address: to.toLowerCase(),
             amount: parseFloat(ethers.formatUnits(totalAmount, 18)),
             repayment_portion: parseFloat(ethers.formatUnits(poolPortion, 18)),
             agent_portion: parseFloat(ethers.formatUnits(agentPortion, 18)),
@@ -184,8 +184,8 @@ export async function startIndexer() {
 
             await supabase.from("transactions").insert({
               tx_hash: fullTx.hash,
-              from_address: fullTx.from,
-              to_address: realToAddress,
+              from_address: fullTx.from.toLowerCase(),
+              to_address: realToAddress.toLowerCase(),
               amount: amount, 
               service_name: serviceName,
               status: status

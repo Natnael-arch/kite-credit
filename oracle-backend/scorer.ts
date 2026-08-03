@@ -209,8 +209,8 @@ async function getTransactions(agentAddress: string) {
     }
     return [];
   } else {
-    // Add double quotes around the hex address for PostgREST
-    const url = `${sbUrl}/rest/v1/transactions?or=(from_address.eq."${agentAddress}",to_address.eq."${agentAddress}")`;
+    const addr = agentAddress.toLowerCase();
+    const url = `${sbUrl}/rest/v1/transactions?or=(from_address.eq.${addr},to_address.eq.${addr})`;
     console.log(`[SCORER] Fetching transactions from Supabase: ${url}`);
     
     try {
