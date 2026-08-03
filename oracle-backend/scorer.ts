@@ -209,11 +209,22 @@ async function getTransactions(agentAddress: string) {
     }
     return [];
   } else {
+    // Add double quotes around the hex address for PostgREST
+    const url = `${sbUrl}/rest/v1/transactions?or=(from_address.eq."${agentAddress}",to_address.eq."${agentAddress}")`;
+    console.log(`[SCORER] Fetching transactions from Supabase: ${url}`);
+    
     try {
-      const res = await fetch(`${sbUrl}/rest/v1/transactions?or=(from_address.eq.${agentAddress},to_address.eq.${agentAddress})`, {
+      const res = await fetch(url, {
         headers: { "apikey": sbKey!, "Authorization": `Bearer ${sbKey}` }
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        console.log(`[SCORER] Success: found ${data.length} transactions for ${agentAddress}`);
+        return data;
+      } else {
+        const errText = await res.text();
+        console.error(`[SCORER] ❌ Supabase REST API Error (Status ${res.status}):`, errText);
+      }
     } catch(e) {
       console.error("[SCORER] Failed to fetch transactions from Supabase:", e);
     }
