@@ -168,11 +168,7 @@ export default function Dashboard() {
       {/* Charts & Score */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <GlassCard className="lg:col-span-2" delay={0.5}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Total Value Locked</h2>
-            <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded-md">Last 10 months</span>
-          </div>
-          <TVLChart />
+          <TVLChart currentTvl={formattedTvl} />
         </GlassCard>
 
         <GlassCard delay={0.6} className="flex flex-col items-center justify-center">

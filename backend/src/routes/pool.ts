@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { supabase } from "../config.js";
+import { ethers } from "ethers";
 
 export const poolRouter = Router();
 
@@ -55,6 +56,101 @@ poolRouter.get("/", async (_req, res) => {
     });
   } catch (err) {
     console.error("GET /pool error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+const DEPLOYMENT_BLOCK = 22030830;
+const LENDING_POOL_ABI = [
+  "event Deposited(address indexed lender, uint256 assets, uint256 sharesMinted)",
+  "event Withdrawn(address indexed lender, uint256 assets, uint256 sharesBurned)"
+];
+
+let historyCache: { data: any[], deploymentDate: Date | null, timestamp: number } | null = null;
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+poolRouter.get("/history", async (_req, res) => {
+  try {
+    const now = Date.now();
+    if (historyCache && now - historyCache.timestamp < CACHE_TTL) {
+      return res.json({
+        data: historyCache.data,
+        deploymentDate: historyCache.deploymentDate
+      });
+    }
+
+    const provider = new ethers.JsonRpcProvider(process.env.KITE_RPC_URL!);
+    const poolAddress = process.env.LENDING_POOL_ADDRESS!;
+    const contract = new ethers.Contract(poolAddress, LENDING_POOL_ABI, provider);
+
+    const [deposits, withdrawals, deploymentBlockData] = await Promise.all([
+      contract.queryFilter("Deposited", DEPLOYMENT_BLOCK, "latest"),
+      contract.queryFilter("Withdrawn", DEPLOYMENT_BLOCK, "latest"),
+      provider.getBlock(DEPLOYMENT_BLOCK)
+    ]);
+
+    const deploymentDate = deploymentBlockData ? new Date(deploymentBlockData.timestamp * 1000) : null;
+
+    const mappedDeposits = deposits.map(e => ({ type: 'deposit', event: e }));
+    const mappedWithdrawals = withdrawals.map(e => ({ type: 'withdraw', event: e }));
+    
+    const allEvents = [...mappedDeposits, ...mappedWithdrawals].sort((a, b) => {
+      if (a.event.blockNumber === b.event.blockNumber) {
+        return a.event.transactionIndex - b.event.transactionIndex;
+      }
+      return a.event.blockNumber - b.event.blockNumber;
+    });
+
+    const blockTimestamps: Record<number, number> = {};
+    const blocksToFetch = [...new Set(allEvents.map(e => e.event.blockNumber))];
+    
+    await Promise.all(
+      blocksToFetch.map(async (blockNum) => {
+        const b = await provider.getBlock(blockNum);
+        if (b) blockTimestamps[blockNum] = b.timestamp;
+      })
+    );
+
+    let currentTvl = 0n;
+    const historyData: { timestamp: number, tvl: number }[] = [];
+
+    if (deploymentBlockData) {
+      historyData.push({
+        timestamp: deploymentBlockData.timestamp * 1000,
+        tvl: 0
+      });
+    }
+
+    for (const { type, event } of allEvents) {
+      const parsed = contract.interface.parseLog({ topics: event.topics as string[], data: event.data });
+      if (!parsed) continue;
+      
+      const amountWei = parsed.args[1];
+      if (type === 'deposit') {
+        currentTvl += amountWei;
+      } else {
+        currentTvl -= amountWei;
+      }
+
+      const ts = blockTimestamps[event.blockNumber] * 1000;
+      historyData.push({
+        timestamp: ts,
+        tvl: Number(ethers.formatUnits(currentTvl, 18))
+      });
+    }
+
+    historyCache = {
+      data: historyData,
+      deploymentDate,
+      timestamp: now
+    };
+
+    res.json({
+      data: historyData,
+      deploymentDate
+    });
+  } catch (err) {
+    console.error("GET /pool/history error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

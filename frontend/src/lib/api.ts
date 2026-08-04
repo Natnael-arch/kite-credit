@@ -143,6 +143,12 @@ export const api = {
       activeLoans: number;
     }>("/api/pool"),
 
+  getPoolHistory: () =>
+    request<{
+      data: Array<{ timestamp: number; tvl: number }>;
+      deploymentDate: string | null;
+    }>("/api/pool/history"),
+
   deposit: (data: { lender_address: string; amount: number }, signAuthMessage: SignAuthMessage) =>
     authenticatedRequest("/api/lending/deposit", {
       method: "POST",
